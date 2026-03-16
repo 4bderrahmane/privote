@@ -39,9 +39,7 @@ contract ElectionFactory {
         verifier = verifier_;
     }
 
-    /// @notice Deploy a new election instance (coordinator is msg.sender).
-    /// @dev This is function is gonna be called after the POST Request of creating the Election object in the backend.
-    function createElection(bytes16 uuid, uint256 endTime, bytes32 enctyptionPublicKey) external returns (address election) {
+    function createElection(bytes16 uuid, uint256 endTime, bytes32 encryptionPublicKey) external returns (address election) {
         if (electionByUuid[uuid] != address(0)) revert Factory__ElectionAlreadyExists();
 
         // Use the raw UUID as the scope so on-chain hashing matches Semaphore's convention.
@@ -52,7 +50,7 @@ contract ElectionFactory {
             msg.sender,       // coordinator
             externalNullifier,
             endTime,
-            enctyptionPublicKey
+            encryptionPublicKey
         ));
 
         electionByUuid[uuid] = election;
