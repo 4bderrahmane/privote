@@ -2,42 +2,21 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { expect } from "chai";
 import { network } from "hardhat";
+import type { InterfaceAbi } from "ethers";
 import type {
-  Contract,
-  ContractTransactionResponse,
-  InterfaceAbi,
-  Signer,
-} from "ethers";
+  Election,
+  ElectionFactory,
+  MockGroth16Verifier,
+} from "../types/ethers-contracts/index.js";
 
 const { ethers } = await network.connect();
+
 const POSEIDON_T3 = "npm/poseidon-solidity@0.0.5/PoseidonT3.sol:PoseidonT3";
 const [POSEIDON_T3_SOURCE, POSEIDON_T3_NAME] = POSEIDON_T3.split(":");
+
 let cachedPoseidonArtifact: { abi: InterfaceAbi; bytecode: string } | undefined;
-type ElectionFactoryContract = Contract & {
-  verifier(): Promise<string>;
-  createElection(
-    uuid: string,
-    endTime: bigint,
-    encryptionPublicKey: string
-  ): Promise<ContractTransactionResponse>;
-  electionByUuid(uuid: string): Promise<string>;
-  connect(signer: Signer): ElectionFactoryContract;
-};
-type ElectionContract = Contract & {
-  coordinator(): Promise<string>;
-  externalNullifier(): Promise<bigint>;
-  endTime(): Promise<bigint>;
-  encryptionPublicKey(): Promise<string>;
-};
 
 describe("ElectionFactory", function () {
-  async function deployPoseidonT3() {
-    const [deployer] = await ethers.getSigners();
-    const { abi, bytecode } = await loadPoseidonArtifact();
-    const PoseidonT3 = new ethers.ContractFactory(abi, bytecode, deployer);
-    return PoseidonT3.deploy();
-  }
-
   async function loadPoseidonArtifact() {
     if (cachedPoseidonArtifact) {
       return cachedPoseidonArtifact;
@@ -53,6 +32,7 @@ describe("ElectionFactory", function () {
 
       const buildInfoPath = path.join(buildInfoDir, entry);
       const buildInfo = JSON.parse(await fs.readFile(buildInfoPath, "utf8"));
+
       const poseidon =
         buildInfo?.output?.contracts?.[POSEIDON_T3_SOURCE]?.[POSEIDON_T3_NAME];
 
@@ -69,19 +49,33 @@ describe("ElectionFactory", function () {
     }
 
     throw new Error(
-      "PoseidonT3 build output not found in artifacts/build-info. Run `hardhat compile` first."
+      "PoseidonT3 build output not found in artifacts/build-info. Run `npx hardhat compile` first."
     );
   }
 
+  async function deployPoseidonT3() {
+    const [deployer] = await ethers.getSigners();
+    const { abi, bytecode } = await loadPoseidonArtifact();
+
+    const PoseidonT3 = new ethers.ContractFactory(abi, bytecode, deployer);
+    const poseidon = await PoseidonT3.deploy();
+    await poseidon.waitForDeployment();
+
+    return poseidon;
+  }
+
   async function deployFactory() {
-    const [owner, other] = await ethers.getSigners();
+    const [, other] = await ethers.getSigners();
 
     const poseidonT3 = await deployPoseidonT3();
 
+    // For factory tests, the verifier only needs to exist and have code.
+    // The actual proof semantics are tested later in Election integration tests.
     const Verifier = await ethers.getContractFactory(
-      "contracts/test/MockSemaphoreVerifier.sol:MockSemaphoreVerifier"
+      "contracts/test/MockGroth16Verifier.sol:MockGroth16Verifier"
     );
-    const verifier = await Verifier.deploy();
+    const verifier = (await Verifier.deploy()) as MockGroth16Verifier;
+    await verifier.waitForDeployment();
 
     const Factory = await ethers.getContractFactory(
       "contracts/ElectionFactory.sol:ElectionFactory",
@@ -91,11 +85,11 @@ describe("ElectionFactory", function () {
         },
       }
     );
-    const factory = (await Factory.deploy(
-      verifier.target
-    )) as ElectionFactoryContract;
 
-    return { factory, verifier, owner, other, poseidonT3 };
+    const factory = (await Factory.deploy(verifier.target)) as ElectionFactory;
+    await factory.waitForDeployment();
+
+    return { factory, verifier, other, poseidonT3 };
   }
 
   it("stores the verifier address", async function () {
@@ -105,6 +99,7 @@ describe("ElectionFactory", function () {
 
   it("reverts if deployed with a zero verifier", async function () {
     const poseidonT3 = await deployPoseidonT3();
+
     const Factory = await ethers.getContractFactory(
       "contracts/ElectionFactory.sol:ElectionFactory",
       {
@@ -120,20 +115,23 @@ describe("ElectionFactory", function () {
   });
 
   it("creates elections and stores the deployment", async function () {
-    const { factory, owner, other, poseidonT3 } = await deployFactory();
+    const { factory, other, poseidonT3 } = await deployFactory();
+
     const now = (await ethers.provider.getBlock("latest"))!.timestamp;
     const endTime = BigInt(now + 3600);
     const uuid = ethers.hexlify(ethers.randomBytes(16));
     const encryptionPublicKey = ethers.keccak256(ethers.toUtf8Bytes("pubkey"));
 
+    const factoryAsOther = factory.connect(other) as ElectionFactory;
+
     await expect(
-      factory.connect(other).createElection(uuid, endTime, encryptionPublicKey)
+      factoryAsOther.createElection(uuid, endTime, encryptionPublicKey)
     ).to.emit(factory, "ElectionDeployed");
 
     const electionAddress = await factory.electionByUuid(uuid);
     expect(electionAddress).to.not.equal(ethers.ZeroAddress);
 
-    const Election = await ethers.getContractFactory(
+    const ElectionContractFactory = await ethers.getContractFactory(
       "contracts/Election.sol:Election",
       {
         libraries: {
@@ -141,7 +139,8 @@ describe("ElectionFactory", function () {
         },
       }
     );
-    const election = Election.attach(electionAddress) as ElectionContract;
+
+    const election = ElectionContractFactory.attach(electionAddress) as Election;
 
     expect(await election.coordinator()).to.equal(other.address);
     expect(await election.externalNullifier()).to.equal(BigInt(uuid));
@@ -151,17 +150,49 @@ describe("ElectionFactory", function () {
 
   it("prevents duplicate elections", async function () {
     const { factory, other } = await deployFactory();
+
     const now = (await ethers.provider.getBlock("latest"))!.timestamp;
     const endTime = BigInt(now + 3600);
     const uuid = ethers.hexlify(ethers.randomBytes(16));
     const encryptionPublicKey = ethers.keccak256(ethers.toUtf8Bytes("pubkey"));
 
-    await factory
-      .connect(other)
-      .createElection(uuid, endTime, encryptionPublicKey);
+    const factoryAsOther = factory.connect(other) as ElectionFactory;
+
+    await factoryAsOther.createElection(uuid, endTime, encryptionPublicKey);
 
     await expect(
       factory.createElection(uuid, endTime, encryptionPublicKey)
     ).to.be.revertedWithCustomError(factory, "Factory__ElectionAlreadyExists");
+  });
+
+  it("reverts for zero uuid", async function () {
+    const { factory } = await deployFactory();
+
+    const now = (await ethers.provider.getBlock("latest"))!.timestamp;
+    const endTime = BigInt(now + 3600);
+    const encryptionPublicKey = ethers.keccak256(ethers.toUtf8Bytes("pubkey"));
+
+    await expect(
+      factory.createElection(
+        ethers.ZeroHash.slice(0, 34), // bytes16
+        endTime,
+        encryptionPublicKey
+      )
+    ).to.be.revertedWithCustomError(factory, "Factory__InvalidUuid");
+  });
+
+  it("reverts for zero encryption public key", async function () {
+    const { factory } = await deployFactory();
+
+    const now = (await ethers.provider.getBlock("latest"))!.timestamp;
+    const endTime = BigInt(now + 3600);
+    const uuid = ethers.hexlify(ethers.randomBytes(16));
+
+    await expect(
+      factory.createElection(uuid, endTime, ethers.ZeroHash)
+    ).to.be.revertedWithCustomError(
+      factory,
+      "Factory__InvalidEncryptionPublicKey"
+    );
   });
 });

@@ -30,9 +30,12 @@
   "dependencies": {
     "@openzeppelin/contracts": "^5.4.0",
     "@openzeppelin/docs-utils": "^0.1.6",
+    "@semaphore-protocol/circuits": "^4.14.0",
     "@semaphore-protocol/contracts": "^4.14.0",
     "@semaphore-protocol/core": "^4.14.0",
     "@semaphore-protocol/identity": "^4.14.0",
-    "@semaphore-protocol/proof": "^4.14.0"
+    "@semaphore-protocol/proof": "^4.14.0",
+    "@zk-kit/binary-merkle-root.circom": "^2.0.0",
+    "circomlib": "^2.0.5"
   }
 }
