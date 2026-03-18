@@ -32,6 +32,22 @@ export async function migrate() {
 
         CREATE INDEX IF NOT EXISTS members_by_block
             ON members (election_address, block_number, log_index);
+
+        CREATE TABLE IF NOT EXISTS elections
+        (
+            election_address TEXT PRIMARY KEY,
+            source           TEXT      NOT NULL,
+            discovered_block BIGINT    NOT NULL DEFAULT 0,
+            discovered_log_index BIGINT NOT NULL DEFAULT -1,
+            created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS factory_sync_state
+        (
+            factory_address          TEXT PRIMARY KEY,
+            last_processed_block     BIGINT NOT NULL DEFAULT 0,
+            last_processed_log_index BIGINT NOT NULL DEFAULT -1
+        );
     `)
 }
 
@@ -62,6 +78,50 @@ export async function getLastProcessedBlock(election: string): Promise<bigint> {
 
 export async function setLastProcessedBlock(election: string, block: bigint) {
     await setSyncCursor(election, {blockNumber: block, logIndex: -1n, blockHash: null})
+}
+
+export type FactorySyncCursor = {
+    blockNumber: bigint
+    logIndex: bigint
+}
+
+export async function getFactorySyncCursor(
+    factory: string,
+    startBlock: bigint = 0n
+): Promise<FactorySyncCursor> {
+    const r = await pool.query(
+        `SELECT last_processed_block, last_processed_log_index
+         FROM factory_sync_state
+         WHERE factory_address = $1`,
+        [factory]
+    )
+
+    if (r.rowCount === 0) {
+        if (startBlock === 0n) return { blockNumber: 0n, logIndex: -1n }
+        return { blockNumber: startBlock - 1n, logIndex: -1n }
+    }
+
+    return {
+        blockNumber: BigInt(r.rows[0].last_processed_block),
+        logIndex: BigInt(r.rows[0].last_processed_log_index)
+    }
+}
+
+export async function setFactorySyncCursor(
+    factory: string,
+    cursor: FactorySyncCursor,
+    client: pg.PoolClient | pg.Pool = pool
+) {
+    await client.query(
+        `
+            INSERT INTO factory_sync_state (factory_address, last_processed_block, last_processed_log_index)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (factory_address)
+                DO UPDATE SET last_processed_block     = EXCLUDED.last_processed_block,
+                              last_processed_log_index = EXCLUDED.last_processed_log_index
+        `,
+        [factory, cursor.blockNumber.toString(), cursor.logIndex.toString()]
+    )
 }
 
 export async function setSyncCursor(
@@ -111,6 +171,50 @@ export async function loadMembers(election: string): Promise<MemberRow[]> {
         [election]
     )
     return r.rows
+}
+
+export async function upsertElectionAddress(
+    election: string,
+    discovered: { source: "seed" | "factory"; blockNumber?: bigint; logIndex?: bigint } = { source: "factory" },
+    client: pg.PoolClient | pg.Pool = pool
+): Promise<boolean> {
+    const r = await client.query(
+        `
+            INSERT INTO elections (election_address, source, discovered_block, discovered_log_index)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (election_address)
+                DO NOTHING
+            RETURNING election_address
+        `,
+        [
+            election,
+            discovered.source,
+            (discovered.blockNumber ?? 0n).toString(),
+            (discovered.logIndex ?? -1n).toString()
+        ]
+    )
+
+    return (r.rowCount ?? 0) > 0
+}
+
+export async function seedElectionAddresses(elections: readonly string[]) {
+    if (elections.length === 0) return
+
+    await withTransaction(async (tx) => {
+        for (const election of elections) {
+            await upsertElectionAddress(election, { source: "seed" }, tx)
+        }
+    })
+}
+
+export async function loadElectionAddresses(): Promise<`0x${string}`[]> {
+    const r = await pool.query(
+        `SELECT election_address
+         FROM elections
+         ORDER BY created_at ASC`
+    )
+
+    return r.rows.map((row) => String(row.election_address).toLowerCase() as `0x${string}`)
 }
 
 export async function deleteMembersFromLeafIndex(client: pg.PoolClient, params: {
