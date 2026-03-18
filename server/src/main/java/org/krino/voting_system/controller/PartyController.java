@@ -2,6 +2,7 @@ package org.krino.voting_system.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.krino.voting_system.dto.party.PartyCreateDto;
+import org.krino.voting_system.dto.party.PartyPatchDto;
 import org.krino.voting_system.entity.Party;
 import org.krino.voting_system.service.PartyService;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +33,14 @@ public class PartyController
     {
         Party updatedParty = partyService.updateParty(uuid, party);
         return ResponseEntity.ok(updatedParty);
+    }
+
+    @PatchMapping("/{uuid}")
+    @PreAuthorize("hasRole('admin')")
+    public ResponseEntity<Party> patchParty(@PathVariable UUID uuid, @RequestBody PartyPatchDto party)
+    {
+        Party patchedParty = partyService.patchParty(uuid, party);
+        return ResponseEntity.ok(patchedParty);
     }
 
     @GetMapping("/{uuid}")
