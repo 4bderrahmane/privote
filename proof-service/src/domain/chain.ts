@@ -1,4 +1,4 @@
-import {createPublicClient, getContract, http, parseAbi, isAddress, Address} from "viem"
+import {createPublicClient, getContract, http, parseAbi, Address} from "viem"
 import { env } from "../config/env"
 
 export const client = createPublicClient({
@@ -30,9 +30,4 @@ export function electionFactoryContract(address: Address) {
         abi: ELECTION_FACTORY_ABI,
         client
     })
-}
-
-export function requireAddress(value: string): Address {
-    if (!isAddress(value)) throw new Error("Invalid address")
-    return value;
 }
