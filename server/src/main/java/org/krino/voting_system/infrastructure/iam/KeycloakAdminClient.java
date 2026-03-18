@@ -5,11 +5,14 @@ import lombok.RequiredArgsConstructor;
 import org.keycloak.admin.client.Keycloak;
 import org.krino.voting_system.exception.KeycloakAdminException;
 import org.krino.voting_system.infrastructure.iam.config.KeycloakAdminProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RequiredArgsConstructor
 public class KeycloakAdminClient implements KeycloakAdminGateway
 {
 
+    private final Logger logger = LoggerFactory.getLogger(KeycloakAdminClient.class);
     private final Keycloak keycloak;
     private final KeycloakAdminProperties props;
 
