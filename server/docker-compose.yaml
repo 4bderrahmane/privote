@@ -17,7 +17,7 @@ services:
 
       KC_HOSTNAME: localhost
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - keycloak_data:/opt/keycloak/data
       - /home/akhbabez/IdeaProjects/keycloak-synchronizer/target/keycloak-synchronizer-1.0-SNAPSHOT.jar:/opt/keycloak/providers/keycloak-synchronizer.jar
