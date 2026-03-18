@@ -1,19 +1,24 @@
 import Fastify, {type FastifyInstance} from "fastify"
 import rateLimit from "@fastify/rate-limit"
-import {registerRoutes} from "./routes.js"
+import {registerRoutes, type RouteDeps} from "./routes.js"
 import type {ElectionGroupState} from "../domain/state.js"
 
-export function buildServer(states: Map<string, ElectionGroupState>): FastifyInstance {
+export function buildServer(
+    states: Map<string, ElectionGroupState>,
+    routeDeps?: RouteDeps
+): FastifyInstance {
     const app = Fastify({
         logger: true,
         trustProxy: true
     })
 
-    app.register(rateLimit, {
-        global: false
-    })
+    app.register(async (instance) => {
+        await instance.register(rateLimit, {
+            global: false
+        })
 
-    registerRoutes(app, states)
+        registerRoutes(instance, states, routeDeps)
+    })
 
     return app
 }
