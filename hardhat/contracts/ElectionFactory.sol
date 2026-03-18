@@ -50,7 +50,6 @@ contract ElectionFactory {
         if (electionByUuid[uuid] != address(0)) revert Factory__ElectionAlreadyExists();
         if (encryptionPublicKey == bytes32(0)) revert Factory__InvalidEncryptionPublicKey();
 
-        // Keep your original simple model:
         // the raw UUID is cast to uint256 and used directly as the election external nullifier.
         //
         // In the Election contract, this same value is used both as:
