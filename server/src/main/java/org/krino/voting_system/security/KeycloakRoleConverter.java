@@ -48,6 +48,8 @@ public class KeycloakRoleConverter implements Converter<Jwt, AbstractAuthenticat
 
     private Collection<? extends GrantedAuthority> extractClientRoles(Jwt jwt)
     {
+        if (keycloakClientId == null || keycloakClientId.isBlank()) return Set.of();
+
         Object resourceAccessObj = jwt.getClaim("resource_access");
         if (!(resourceAccessObj instanceof Map<?, ?> resourceAccess)) return Set.of();
 

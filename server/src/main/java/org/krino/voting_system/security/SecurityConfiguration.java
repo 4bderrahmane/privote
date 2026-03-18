@@ -21,8 +21,8 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfiguration
 {
-    @Value("${keycloak-admin.client-id}")
-    private String clientId;
+    @Value("${app.security.roles-client-id}")
+    private String rolesClientId;
 
     private static final String[] PUBLIC_ENDPOINTS = {"/api/auth/**", "/api/public/**", "/api/internal/sync"};
 
@@ -39,7 +39,7 @@ public class SecurityConfiguration
                     )
                     .oauth2ResourceServer(oauth2 -> oauth2
                             .jwt(jwt -> jwt
-                                    .jwtAuthenticationConverter(new KeycloakRoleConverter(clientId))
+                                    .jwtAuthenticationConverter(new KeycloakRoleConverter(rolesClientId))
                             )
                     )
                     .sessionManagement(session -> session

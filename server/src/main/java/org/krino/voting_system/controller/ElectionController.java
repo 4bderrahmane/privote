@@ -20,7 +20,7 @@ public class ElectionController
     private final ElectionService electionService;
 
     @PostMapping("/create")
-//    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('admin')")
     public ResponseEntity<Election> createElection(@RequestBody ElectionCreateDto election)
     {
         Election createdElection = electionService.createElection(election);
@@ -28,7 +28,7 @@ public class ElectionController
     }
 
     @PutMapping("/{uuid}")
-//    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('admin')")
     public ResponseEntity<Election> updateElection(@PathVariable UUID uuid, @RequestBody ElectionCreateDto election)
     {
         Election updatedElection = electionService.updateElection(uuid, election);
@@ -36,7 +36,7 @@ public class ElectionController
     }
 
     @PatchMapping("/{uuid}")
-//    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('admin')")
     public ResponseEntity<Election> patchElection(@PathVariable UUID uuid, @RequestBody ElectionPatchDto patch)
     {
         Election patchedElection = electionService.patchElection(uuid, patch);

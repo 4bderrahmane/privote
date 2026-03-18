@@ -21,17 +21,6 @@ spring:
 
   security:
     oauth2:
-      client:
-        registration:
-          keycloak:
-            provider: keycloak
-            client-id: voting-backend
-            client-secret: ${VOTING_BACKEND_CLIENT_SECRET}
-            authorization-grant-type: client_credentials
-            scope: openid
-        provider:
-          keycloak:
-            issuer-uri: http://localhost:8080/realms/voting-realm
       resourceserver:
         jwt:
           issuer-uri: http://localhost:8080/realms/voting-realm
@@ -56,6 +45,8 @@ app:
     allowed-origins:
     - http://localhost:5173
     - http://localhost:3000
+  security:
+    roles-client-id: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID:voting-backend}
 
 sync:
   secret: ${SYNC_SECRET}
