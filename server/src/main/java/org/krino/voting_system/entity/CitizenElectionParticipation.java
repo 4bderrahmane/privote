@@ -56,7 +56,7 @@ public class CitizenElectionParticipation
      * those can weaken the privacy boundary if they are derived from
      * anonymous voting-layer activity.
      */
-//    @Enumerated(EnumType.STRING)
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private ParticipationStatus status;
 

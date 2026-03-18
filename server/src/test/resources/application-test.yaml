@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost/test/jwks
+
+sync:
+  secret: test-secret
+
+keycloak-admin:
+  server-url: http://localhost:8080
+  realm: voting-realm
+  client-id: voting-admin
+  client-secret: test-secret
+
+app:
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+  security:
+    roles-client-id: voting-backend
+
+web3j:
+  chain-id: 31337
+  client-address: http://127.0.0.1:8545
+  private-key: 0000000000000000000000000000000000000000000000000000000000000001
+  election-factory-address: 0x0000000000000000000000000000000000000000
