@@ -2,6 +2,7 @@ import { getAddress } from "viem"
 import { electionFactoryContract, client } from "../domain/chain"
 import { env } from "../config/env"
 import {
+    deleteFactoryDiscoveredElectionsFromBlock,
     getFactorySyncCursor,
     setFactorySyncCursor,
     upsertElectionAddress,
@@ -9,6 +10,7 @@ import {
 } from "../infrastructure/db"
 
 const DEFAULT_POLL_MS = 2000
+const REORG_BACKOFF_MS = 250
 const ERROR_BACKOFF_MS = 3000
 
 type FactoryDiscoveryOptions = {
@@ -30,13 +32,30 @@ function cmpBigInt(a: bigint, b: bigint): number {
     return 0
 }
 
-function computeFinalizedBlock(headBlock: bigint, confirmations: bigint) {
+export function computeFactoryFinalizedBlock(headBlock: bigint, confirmations: bigint) {
     return headBlock > confirmations ? headBlock - confirmations : 0n
 }
 
-function computeNextFromCursor(cursor: { blockNumber: bigint; logIndex: bigint }) {
-    const isUninitialized = cursor.blockNumber === 0n && cursor.logIndex === -1n
+export function computeFactoryNextFromCursor(cursor: { blockNumber: bigint; logIndex: bigint }) {
+    const isUninitialized =
+        cursor.blockNumber === 0n &&
+        cursor.logIndex === -1n &&
+        (!("blockHash" in cursor) || (cursor as { blockHash?: string | null }).blockHash == null)
     return isUninitialized ? 0n : cursor.blockNumber + 1n
+}
+
+export function computeFactoryReorgRewindPlan(cursorBlockNumber: bigint, confirmations: bigint): {
+    rewindFrom: bigint
+    cursorAfterRewind: { blockNumber: bigint; logIndex: bigint; blockHash: string | null }
+} {
+    const safety = confirmations + 2n
+    const rewindFrom = cursorBlockNumber > safety ? cursorBlockNumber - safety : 0n
+    const cursorAfterRewind =
+        rewindFrom === 0n
+            ? { blockNumber: 0n, logIndex: -1n, blockHash: null }
+            : { blockNumber: rewindFrom - 1n, logIndex: -1n, blockHash: null }
+
+    return { rewindFrom, cursorAfterRewind }
 }
 
 function normalizeAddress(address: string): `0x${string}` {
@@ -48,13 +67,89 @@ type SortableLog = {
     logIndex: number | bigint
 }
 
-function sortLogs<T extends SortableLog>(logs: T[]): T[] {
+export function sortFactoryLogs<T extends SortableLog>(logs: T[]): T[] {
     logs.sort((a, b) => {
         const byBlock = cmpBigInt(a.blockNumber, b.blockNumber)
         if (byBlock !== 0) return byBlock
         return cmpBigInt(BigInt(a.logIndex), BigInt(b.logIndex))
     })
     return logs
+}
+
+export type FactoryElectionDeployedLog = {
+    blockNumber: bigint
+    logIndex: number | bigint
+    args: {
+        election?: string
+    }
+}
+
+export function buildDiscoveredElectionBatch(logs: FactoryElectionDeployedLog[]) {
+    const discovered = new Map<`0x${string}`, { blockNumber: bigint; logIndex: bigint }>()
+    let lastLogIndex = -1n
+
+    for (const log of logs) {
+        lastLogIndex = BigInt(log.logIndex)
+
+        const election = log.args.election
+        if (!election) continue
+
+        discovered.set(normalizeAddress(election), {
+            blockNumber: log.blockNumber,
+            logIndex: BigInt(log.logIndex)
+        })
+    }
+
+    return { discovered, lastLogIndex }
+}
+
+export type FactoryReorgDeps = {
+    getFactorySyncCursor: typeof getFactorySyncCursor
+    getBlockByNumber: (blockNumber: bigint) => Promise<{ hash: `0x${string}` }>
+    withTransaction: typeof withTransaction
+    deleteFactoryDiscoveredElectionsFromBlock: (
+        fromBlock: bigint,
+        tx: Parameters<Parameters<typeof withTransaction>[0]>[0]
+    ) => Promise<void>
+    setFactorySyncCursor: typeof setFactorySyncCursor
+}
+
+const defaultFactoryReorgDeps: FactoryReorgDeps = {
+    getFactorySyncCursor,
+    getBlockByNumber: async (blockNumber) => client.getBlock({ blockNumber }),
+    withTransaction,
+    deleteFactoryDiscoveredElectionsFromBlock: async (fromBlock, tx) =>
+        deleteFactoryDiscoveredElectionsFromBlock(fromBlock, tx),
+    setFactorySyncCursor
+}
+
+export async function handleFactoryReorgIfDetected(
+    factoryAddress: `0x${string}`,
+    confirmations: bigint,
+    startBlock: bigint,
+    deps: FactoryReorgDeps = defaultFactoryReorgDeps
+) {
+    const cursor = await deps.getFactorySyncCursor(factoryAddress, startBlock)
+
+    if (cursor.blockNumber > 0n && cursor.blockHash) {
+        const canonical = await deps.getBlockByNumber(cursor.blockNumber)
+
+        if (canonical.hash !== cursor.blockHash) {
+            const { rewindFrom, cursorAfterRewind } = computeFactoryReorgRewindPlan(
+                cursor.blockNumber,
+                confirmations
+            )
+
+            await deps.withTransaction(async (tx) => {
+                await deps.deleteFactoryDiscoveredElectionsFromBlock(rewindFrom, tx)
+                await deps.setFactorySyncCursor(factoryAddress, cursorAfterRewind, tx)
+            })
+
+            return { didReorg: true, cursor }
+        }
+    }
+
+    return { didReorg: false, cursor }
 }
 
 export async function runFactoryElectionDiscoveryLoop(
@@ -72,10 +167,20 @@ export async function runFactoryElectionDiscoveryLoop(
 
         try {
             const headBlock = await client.getBlockNumber()
-            const finalizedBlock = computeFinalizedBlock(headBlock, confirmations)
+            const finalizedBlock = computeFactoryFinalizedBlock(headBlock, confirmations)
 
-            const cursor = await getFactorySyncCursor(factoryAddress, env.FACTORY_START_BLOCK)
-            let from = computeNextFromCursor(cursor)
+            const reorgResult = await handleFactoryReorgIfDetected(
+                factoryAddress,
+                confirmations,
+                env.FACTORY_START_BLOCK
+            )
+            if (reorgResult.didReorg) {
+                await sleep(REORG_BACKOFF_MS)
+                continue
+            }
+
+            const cursor = reorgResult.cursor
+            let from = computeFactoryNextFromCursor(cursor)
 
             if (from > finalizedBlock) {
                 await sleep(DEFAULT_POLL_MS)
@@ -91,26 +196,15 @@ export async function runFactoryElectionDiscoveryLoop(
                     {},
                     { fromBlock: from, toBlock: to }
                 )
-                sortLogs(logs)
+                sortFactoryLogs(logs)
 
-                const discovered = new Map<`0x${string}`, { blockNumber: bigint; logIndex: bigint }>()
-                let lastLogIndex = -1n
-
-                for (const log of logs) {
-                    lastLogIndex = BigInt(log.logIndex)
-
-                    const election = log.args.election
-                    if (!election) continue
-
-                    discovered.set(normalizeAddress(election), {
-                        blockNumber: log.blockNumber,
-                        logIndex: BigInt(log.logIndex)
-                    })
-                }
+                const { discovered, lastLogIndex } = buildDiscoveredElectionBatch(logs)
+                const toBlockHash = (await client.getBlock({ blockNumber: to })).hash
+                const newlyDiscovered: `0x${string}`[] = []
 
                 await withTransaction(async (tx) => {
                     for (const [election, cursorPos] of discovered) {
-                        await upsertElectionAddress(
+                        const inserted = await upsertElectionAddress(
                             election,
                             {
                                 source: "factory",
@@ -119,17 +213,18 @@ export async function runFactoryElectionDiscoveryLoop(
                             },
                             tx
                         )
+                        if (inserted) newlyDiscovered.push(election)
                     }
 
                     await setFactorySyncCursor(
                         factoryAddress,
-                        { blockNumber: to, logIndex: lastLogIndex },
+                        { blockNumber: to, logIndex: lastLogIndex, blockHash: toBlockHash },
                         tx
                     )
                 })
 
                 if (onElectionDiscovered) {
-                    for (const election of discovered.keys()) {
+                    for (const election of newlyDiscovered) {
                         await onElectionDiscovered(election)
                     }
                 }
