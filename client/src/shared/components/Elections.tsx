@@ -173,7 +173,6 @@ const Elections: React.FC = () => {
 
                   <div className="election-badges">
                     <span className={badgeClass}>{statusLabel}</span>
-                    {election.hasVoted ? <span className="badge">Voted</span> : null}
                   </div>
                 </div>
 

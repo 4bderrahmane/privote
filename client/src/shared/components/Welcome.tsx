@@ -36,7 +36,7 @@ function Welcome() {
     const text = t("welcome.welcome", { name: givenName || "Guest" });
 
     return (
-        <div className="text-xl font-mono">
+        <div>
             <TypeAnimation
                 key={`${i18n.language}-${givenName}`} // rerun animation if language or name changes
                 sequence={[text, 1000]}

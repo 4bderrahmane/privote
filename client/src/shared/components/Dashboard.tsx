@@ -43,6 +43,7 @@ const Dashboard: React.FC = () => {
 
     const {user} = auth;
     const display = user.email ?? user.username ?? user.id;
+    const welcomeName = user.name ?? user.username ?? user.email ?? "Guest";
 
     const handleLogoutButtonClick = async () => {
         // Note: logout triggers a full redirect, so UI won’t remain long.
@@ -52,7 +53,7 @@ const Dashboard: React.FC = () => {
     return (
         <div className="dashboard-page">
             <div className="dashboard-card">
-                <h2 className="dashboard-title">{t("welcome.welcome")}</h2>
+                <h2 className="dashboard-title">{t("welcome.welcome", { name: welcomeName })}</h2>
 
                 <p className="dashboard-subtitle">
                     {t("loggedInAs")} <strong>{display}</strong>
