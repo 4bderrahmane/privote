@@ -7,18 +7,39 @@ export type BootstrappedElection = {
     members: { leafIndex: number; commitment: bigint }[]
 }
 
-async function bootstrapElectionInternal(
-    electionAddress: `0x${string}`
-): Promise<BootstrappedElection> {
-    const c = electionContract(electionAddress)
+export type BootstrapDeps = {
+    getElectionMeta: (electionAddress: `0x${string}`) => Promise<{
+        groupId: bigint
+        depth: number
+    }>
+    loadMembers: typeof loadMembers
+}
 
-    const groupId = await c.read.externalNullifier()
-    const depth = Number(await c.read.getMerkleTreeDepth([groupId]))
+const defaultBootstrapDeps: BootstrapDeps = {
+    getElectionMeta: async (electionAddress) => {
+        const c = electionContract(electionAddress)
+        const groupId = await c.read.externalNullifier()
+        const depth = Number(await c.read.getMerkleTreeDepth([groupId]))
+        return { groupId, depth }
+    },
+    loadMembers
+}
+
+async function bootstrapElectionInternal(
+    electionAddress: `0x${string}`,
+    overrides: Partial<BootstrapDeps> = {}
+): Promise<BootstrappedElection> {
+    const deps: BootstrapDeps = {
+        ...defaultBootstrapDeps,
+        ...overrides
+    }
+
+    const { groupId, depth } = await deps.getElectionMeta(electionAddress)
 
     const state = new ElectionGroupStateImpl(electionAddress)
     state.init(groupId, depth)
 
-    const rows = await loadMembers(electionAddress)
+    const rows = await deps.loadMembers(electionAddress)
 
     const members = rows.map((r: any) => ({
         leafIndex: Number(BigInt(r.leaf_index)),
@@ -31,14 +52,16 @@ async function bootstrapElectionInternal(
 }
 
 export async function bootstrapElectionState(
-    electionAddress: `0x${string}`
+    electionAddress: `0x${string}`,
+    overrides: Partial<BootstrapDeps> = {}
 ): Promise<ElectionGroupStateImpl> {
-    const { state } = await bootstrapElectionInternal(electionAddress)
+    const { state } = await bootstrapElectionInternal(electionAddress, overrides)
     return state
 }
 
 export async function bootstrapElectionSnapshot(
-    electionAddress: `0x${string}`
+    electionAddress: `0x${string}`,
+    overrides: Partial<BootstrapDeps> = {}
 ): Promise<BootstrappedElection> {
-    return bootstrapElectionInternal(electionAddress)
+    return bootstrapElectionInternal(electionAddress, overrides)
 }
