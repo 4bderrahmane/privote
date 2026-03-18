@@ -10,11 +10,13 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.krino.voting_system.entity.enums.CandidateStatus;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(
         name = "candidates",
         indexes = {
+                @Index(name = "idx_candidates_public_id", columnList = "public_id", unique = true),
                 @Index(name = "idx_candidates_election", columnList = "election_id"),
                 @Index(name = "idx_candidates_status", columnList = "status"),
                 @Index(name = "idx_candidates_party", columnList = "party_id")
@@ -33,6 +35,18 @@ public class Candidate
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "public_id", nullable = false, unique = true, updatable = false)
+    private UUID publicId;
+
+    @PrePersist
+    void prePersist()
+    {
+        if (publicId == null)
+        {
+            publicId = UUID.randomUUID();
+        }
+    }
 
     /**
      * The citizen who is running as a candidate in this election.
