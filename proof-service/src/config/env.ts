@@ -56,7 +56,9 @@ const postgresUrl = z
 const schema = z.object({
     RPC_URL: z.string().url(),
     DATABASE_URL: postgresUrl,
-    ELECTION_ADDRESSES: z.string().min(1),
+    ELECTION_ADDRESSES: z.string().default(""),
+    FACTORY_ADDRESS: z.string().default(""),
+    FACTORY_START_BLOCK: z.coerce.bigint().default(0n),
     PORT: z.coerce.number().default(4010),
     CONFIRMATIONS: z.coerce.number().default(5),
     LOG_BATCH_SIZE: z.coerce.number().default(50_000)
@@ -64,12 +66,22 @@ const schema = z.object({
 
 export const env = schema.parse(process.env)
 
+function normalizeAddress(raw: string): `0x${string}` {
+    return getAddress(raw).toLowerCase() as `0x${string}`
+}
+
 export const electionAddresses = Array.from(
     new Set(
         env.ELECTION_ADDRESSES
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean)
-            .map((s) => getAddress(s).toLowerCase() as `0x${string}`)
+            .map((s) => normalizeAddress(s))
     )
 )
+
+export const electionFactoryAddress: `0x${string}` | null = (() => {
+    const raw = env.FACTORY_ADDRESS.trim()
+    if (!raw) return null
+    return normalizeAddress(raw)
+})()
