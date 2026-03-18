@@ -17,7 +17,7 @@ public class AccountDeletionService
     public void deleteMyAccount(String userId)
     {
         UUID uuid = UUID.fromString(userId);
-        citizenService.getCitizenByUUID(uuid).setDeleted(true);
+        citizenService.softDeleteCitizenByUUID(uuid);
 
         keycloak.disableUser(userId);
         keycloak.logoutUser(userId);
