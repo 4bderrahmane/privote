@@ -1,19 +1,16 @@
 export interface UserUpdateDTO {
-    username?: string;
     firstName?: string;
     lastName?: string;
     email?: string;
     phoneNumber?: string;
-}
-
-export interface UserUpdatePasswordDTO {
-    currentPassword: string;
-    newPassword: string;
-    confirmNewPassword: string;
+    address?: string;
+    region?: string;
+    birthPlace?: string;
+    birthDate?: string;
 }
 
 export interface SettingsProps {
-    section?: 'profile' | 'password' | 'delete';
+    section?: 'profile' | 'delete';
 }
 
 export interface User {
@@ -47,13 +44,18 @@ export interface UserRegistrationDTO {
 }
 
 export interface UserResponseDTO {
-    id: number;
+    keycloakId: string;
     username: string;
     firstName: string;
     lastName: string;
+    cin: string;
     email: string;
-    phoneNumber: string;
-    roles: Set<Role>;
+    phoneNumber: string | null;
+    address: string | null;
+    region: string | null;
+    birthPlace: string | null;
+    birthDate: string | null;
+    emailVerified: boolean;
 }
 
 export interface ApiResponse<T> {

@@ -18,6 +18,7 @@ import NotFoundPage from "../shared/components/NotFoundPage";
 import Elections from "../shared/components/Elections";
 import Results from "../shared/components/Results";
 import MyVotes from "../shared/components/MyVotes";
+import Settings from "@/user-management/components/settings/Settings.tsx";
 
 const router = createBrowserRouter([
     {
@@ -89,6 +90,22 @@ const router = createBrowserRouter([
                         element: <DashboardLayout />,
                         children: [
                             { index: true, element: <MyVotes /> },
+                            { path: "*", element: <NotFoundPage /> },
+                        ],
+                    },
+                ],
+            },
+
+            {
+                path: "/settings",
+                element: <RequireAuth />,
+                children: [
+                    {
+                        element: <DashboardLayout />,
+                        children: [
+                            { index: true, element: <Settings section="profile" /> },
+                            { path: "profile", element: <Settings section="profile" /> },
+                            { path: "delete", element: <Settings section="delete" /> },
                             { path: "*", element: <NotFoundPage /> },
                         ],
                     },

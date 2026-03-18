@@ -17,7 +17,7 @@ i18n
         },
         load: 'languageOnly',
         // Optimization: explicitly state namespaces to avoid extra network requests
-        ns: ['common', 'auth', 'nav'],
+        ns: ['common', 'auth', 'nav', 'settings'],
         defaultNS: 'common',
 
         // interpolation: {

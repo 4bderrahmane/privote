@@ -5,3 +5,9 @@ export const keycloak = new Keycloak({
     realm: import.meta.env.VITE_KEYCLOAK_REALM ?? "voting-realm",
     clientId: import.meta.env.VITE_KEYCLOAK_CLIENT ?? "voting-frontend",
 });
+
+export async function getToken(minValiditySeconds = 30): Promise<string | undefined> {
+    if (!keycloak.authenticated) return undefined;
+    await keycloak.updateToken(minValiditySeconds);
+    return keycloak.token;
+}

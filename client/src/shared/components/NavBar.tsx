@@ -8,7 +8,7 @@ import { useSuccessToast } from "../hooks/useSuccessToast";
 import { useAuth } from "@/auth/useAuth.ts";
 import useOutsideClick from "../hooks/useOutsideClick";
 import { MdSettings, MdPerson, MdLogout } from "react-icons/md";
-// import SettingsDropDown from "../../features/user-management/components/settings/SettingsDropDown";
+import SettingsDropDown from "@/user-management/components/settings/SettingsDropDown.tsx";
 
 const NavBar: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -94,7 +94,7 @@ const NavBar: React.FC = () => {
             {isDropdownOpen && (
               <div className="dropdown-menu">
                 <Link
-                  to="/me"
+                  to="/settings/profile"
                   className="dropdown-item"
                   onClick={closeDropdown}
                 >
@@ -106,7 +106,7 @@ const NavBar: React.FC = () => {
                   <MdSettings className="dropdown-icon-svg" />
                   <span>{t("nav:settings")}</span>
                   <div className="dropdown-submenu">
-                    {/*<SettingsDropDown onClose={closeDropdown} />*/}
+                    <SettingsDropDown onClose={closeDropdown} />
                   </div>
                 </div>
 
