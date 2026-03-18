@@ -84,28 +84,56 @@ async function rebuildStateFromDb(state: ElectionGroupState) {
     state.rebuildFromMembers(snapshot.members)
 }
 
+export type ReorgDeps = {
+    getSyncCursor: typeof getSyncCursor
+    getBlockByNumber: (blockNumber: bigint) => Promise<{ hash: `0x${string}` }>
+    withTransaction: typeof withTransaction
+    deleteMembersFromBlock: (
+        tx: Parameters<Parameters<typeof withTransaction>[0]>[0],
+        election: string,
+        fromBlock: bigint
+    ) => Promise<void>
+    setSyncCursor: typeof setSyncCursor
+    rebuildStateFromDb: (state: ElectionGroupState) => Promise<void>
+}
+
+const defaultReorgDeps: ReorgDeps = {
+    getSyncCursor,
+    getBlockByNumber: async (blockNumber) => client.getBlock({ blockNumber }),
+    withTransaction,
+    deleteMembersFromBlock: async (tx, election, fromBlock) => {
+        await tx.query(
+            `DELETE FROM members WHERE election_address=$1 AND block_number >= $2`,
+            [election, fromBlock.toString()]
+        )
+    },
+    setSyncCursor,
+    rebuildStateFromDb
+}
+
 /**
  * Detect reorg by comparing stored cursor hash with current canonical hash.
  * If detected, rewind conservatively and rebuild state.
  */
-async function handleReorgIfDetected(state: ElectionGroupState, confirmations: bigint) {
-    const cursor = await getSyncCursor(state.election)
+export async function handleReorgIfDetected(
+    state: ElectionGroupState,
+    confirmations: bigint,
+    deps: ReorgDeps = defaultReorgDeps
+) {
+    const cursor = await deps.getSyncCursor(state.election)
 
     if (cursor.blockNumber > 0n && cursor.blockHash) {
-        const blk = await client.getBlock({ blockNumber: cursor.blockNumber })
+        const blk = await deps.getBlockByNumber(cursor.blockNumber)
         if (blk.hash !== cursor.blockHash) {
             const { rewindFrom, cursorAfterRewind } = computeReorgRewindPlan(cursor.blockNumber, confirmations)
 
-            await withTransaction(async (tx) => {
-                await tx.query(
-                    `DELETE FROM members WHERE election_address=$1 AND block_number >= $2`,
-                    [state.election, rewindFrom.toString()]
-                )
+            await deps.withTransaction(async (tx) => {
+                await deps.deleteMembersFromBlock(tx, state.election, rewindFrom)
 
-                await setSyncCursor(state.election, cursorAfterRewind, tx)
+                await deps.setSyncCursor(state.election, cursorAfterRewind, tx)
             })
 
-            await rebuildStateFromDb(state)
+            await deps.rebuildStateFromDb(state)
             return { didReorg: true, cursor }
         }
     }
