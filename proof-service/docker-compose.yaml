@@ -15,7 +15,9 @@ services:
     environment:
       RPC_URL: "http://host.docker.internal:8545"
       DATABASE_URL: "postgres://proof:proof@postgres:5432/proofdb"
-      ELECTION_ADDRESSES: "0xYourElection1,0xYourElection2"
+      ELECTION_ADDRESSES: ""
+      FACTORY_ADDRESS: ""
+      FACTORY_START_BLOCK: "0"
       PORT: "4010"
       CONFIRMATIONS: "0"
     depends_on:
