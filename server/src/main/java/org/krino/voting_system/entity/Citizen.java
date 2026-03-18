@@ -6,19 +6,22 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @Builder
 @Entity
-@Table(name = "citizens", indexes =
-        {
+@Table(
+        name = "citizens",
+        indexes = {
                 @Index(name = "idx_citizen_keycloak", columnList = "keycloak_id"),
-                @Index(name = "idx_citizen_cin", columnList = "CIN")
-        })
+                @Index(name = "idx_citizen_cin", columnList = "cin"),
+                @Index(name = "idx_citizen_email", columnList = "email")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -50,7 +53,7 @@ public class Citizen
 
     private LocalDate birthDate;
 
-    @Column(name = "CIN", nullable = false, unique = true)
+    @Column(name = "cin", nullable = false, unique = true)
     private String cin;
 
     @Column(nullable = false)
@@ -60,30 +63,41 @@ public class Citizen
     private String phoneNumber;
 
     @Builder.Default
+    @Column(name = "email_verified", nullable = false)
     private boolean emailVerified = false;
 
+    /**
+     * Global system-level eligibility flag.
+     *
+     * Keep this only if it means something like:
+     * "this citizen is generally allowed to participate in the voting system".
+     *
+     * Election-specific eligibility should live in an election-specific entity
+     * such as CitizenElectionParticipation.
+     */
     @Builder.Default
     @Column(name = "is_eligible", nullable = false)
     private boolean isEligible = true;
 
     @Builder.Default
-    @OneToMany(mappedBy = "citizen", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "citizen", fetch = FetchType.LAZY)
     @JsonIgnore
     private List<VoterCommitment> voterCommitments = new ArrayList<>();
 
     @Builder.Default
-    @OneToMany(mappedBy = "citizen", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "citizen", fetch = FetchType.LAZY)
     @JsonIgnore
     private List<Candidate> candidacies = new ArrayList<>();
 
     @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "created_at", updatable = false, nullable = false)
+    private Instant createdAt;
 
     @UpdateTimestamp
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
+    @Column(name = "is_deleted", nullable = false)
     private boolean isDeleted;
 
     @Override
@@ -100,5 +114,4 @@ public class Citizen
     {
         return getClass().hashCode();
     }
-
 }
