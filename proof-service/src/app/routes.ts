@@ -19,7 +19,22 @@ function normalizeAddress(address: string): string {
     return getAddress(address).toLowerCase()
 }
 
-export function registerRoutes(app: FastifyInstance, states: Map<string, ElectionGroupState>) {
+export type RouteDeps = {
+    getOnChainRoot: (state: ElectionGroupState) => Promise<bigint>
+}
+
+const defaultRouteDeps: RouteDeps = {
+    getOnChainRoot: async (state) => {
+        const contract = electionContract(state.election)
+        return contract.read.getMerkleTreeRoot([state.groupId])
+    }
+}
+
+export function registerRoutes(
+    app: FastifyInstance,
+    states: Map<string, ElectionGroupState>,
+    deps: RouteDeps = defaultRouteDeps
+) {
     app.get("/health", async () => ({ok: true}))
 
     app.get<{ Params: { address: string } }>(
@@ -40,8 +55,12 @@ export function registerRoutes(app: FastifyInstance, states: Map<string, Electio
             const state = states.get(address)
             if (!state) return reply.code(404).send({error: "Unknown election"})
 
-            const c = electionContract(state.election)
-            const onChainRoot = await c.read.getMerkleTreeRoot([state.groupId])
+            let onChainRoot: bigint
+            try {
+                onChainRoot = await deps.getOnChainRoot(state)
+            } catch {
+                return reply.code(503).send({ error: "RPC unavailable" })
+            }
             const offChainRoot = state.getRoot()
 
             return {
@@ -83,8 +102,12 @@ export function registerRoutes(app: FastifyInstance, states: Map<string, Electio
                 return reply.code(404).send({error: "Commitment not found"})
             }
 
-            const c = electionContract(state.election)
-            const onChainRoot = await c.read.getMerkleTreeRoot([state.groupId])
+            let onChainRoot: bigint
+            try {
+                onChainRoot = await deps.getOnChainRoot(state)
+            } catch {
+                return reply.code(503).send({ error: "RPC unavailable" })
+            }
 
             if (BigInt(proof.root) !== onChainRoot) {
                 return reply.code(409).send({
