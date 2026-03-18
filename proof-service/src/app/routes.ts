@@ -22,29 +22,48 @@ function normalizeAddress(address: string): string {
 export function registerRoutes(app: FastifyInstance, states: Map<string, ElectionGroupState>) {
     app.get("/health", async () => ({ok: true}))
 
-    app.get<{ Params: { address: string } }>("/elections/:address/root", async (req, reply) => {
-        const parsed = AddressSchema.safeParse(req.params.address)
-        if (!parsed.success) return reply.code(400).send({error: parsed.error.issues[0]?.message ?? "Invalid address"})
+    app.get<{ Params: { address: string } }>(
+        "/elections/:address/root",
+        {
+            config: {
+                rateLimit: {
+                    max: 120,
+                    timeWindow: "1 minute"
+                }
+            }
+        },
+        async (req, reply) => {
+            const parsed = AddressSchema.safeParse(req.params.address)
+            if (!parsed.success) return reply.code(400).send({error: parsed.error.issues[0]?.message ?? "Invalid address"})
 
-        const address = normalizeAddress(parsed.data)
-        const state = states.get(address)
-        if (!state) return reply.code(404).send({error: "Unknown election"})
+            const address = normalizeAddress(parsed.data)
+            const state = states.get(address)
+            if (!state) return reply.code(404).send({error: "Unknown election"})
 
-        const c = electionContract(state.election)
-        const onChainRoot = await c.read.getMerkleTreeRoot([state.groupId])
-        const offChainRoot = state.getRoot()
+            const c = electionContract(state.election)
+            const onChainRoot = await c.read.getMerkleTreeRoot([state.groupId])
+            const offChainRoot = state.getRoot()
 
-        return {
-            groupId: state.groupId.toString(),
-            expectedDepth: state.expectedDepth,
-            onChainRoot: onChainRoot.toString(),
-            offChainRoot: offChainRoot.toString(),
-            match: onChainRoot === offChainRoot
+            return {
+                groupId: state.groupId.toString(),
+                expectedDepth: state.expectedDepth,
+                onChainRoot: onChainRoot.toString(),
+                offChainRoot: offChainRoot.toString(),
+                match: onChainRoot === offChainRoot
+            }
         }
-    })
+    )
 
     app.get<{ Params: { address: string }, Querystring: { commitment?: string } }>(
         "/elections/:address/proof",
+        {
+            config: {
+                rateLimit: {
+                    max: 30,
+                    timeWindow: "1 minute"
+                }
+            }
+        },
         async (req, reply) => {
             const addrParsed = AddressSchema.safeParse(req.params.address)
             if (!addrParsed.success) return reply.code(400).send({error: addrParsed.error.issues[0]?.message ?? "Invalid address"})
