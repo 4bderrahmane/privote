@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import {z} from "zod"
+import { getAddress } from "viem"
 
 const postgresUrl = z
     .string()
@@ -63,7 +64,12 @@ const schema = z.object({
 
 export const env = schema.parse(process.env)
 
-export const electionAddresses = env.ELECTION_ADDRESSES
-    .split(",")
-    .map(s => s.trim())
-    .filter(Boolean) as `0x${string}`[]
+export const electionAddresses = Array.from(
+    new Set(
+        env.ELECTION_ADDRESSES
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .map((s) => getAddress(s).toLowerCase() as `0x${string}`)
+    )
+)

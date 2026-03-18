@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "RPC_URL=http://127.0.0.1:8545 DATABASE_URL=postgres://user:pass@localhost:5432/proofdb ELECTION_ADDRESSES=0x0000000000000000000000000000000000000001 node --import tsx --test test/**/*.test.ts",
     "dev": "tsx watch src/main.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js"

@@ -27,22 +27,46 @@ function cmpBigInt(a: bigint, b: bigint): number {
     return 0
 }
 
-function computeFinalizedBlock(headBlock: bigint, confirmations: bigint) {
+export type CursorState = {
+    blockNumber: bigint
+    logIndex: bigint
+    blockHash: string | null
+}
+
+export function computeFinalizedBlock(headBlock: bigint, confirmations: bigint) {
     return headBlock > confirmations ? headBlock - confirmations : 0n
 }
 
-function computeNextFromBlock(cursorBlockNumber: bigint) {
-    // Don't skip block 0 on fresh start.
-    return cursorBlockNumber === 0n ? 0n : cursorBlockNumber + 1n
+export function computeNextFromCursor(cursor: CursorState) {
+    const isUninitialized =
+        cursor.blockNumber === 0n &&
+        cursor.logIndex === -1n &&
+        cursor.blockHash === null
+
+    return isUninitialized ? 0n : cursor.blockNumber + 1n
 }
 
-function sortMemberAddedLogs<T extends { blockNumber: bigint; logIndex: number | bigint }>(logs: T[]): T[] {
+export function sortMemberAddedLogs<T extends { blockNumber: bigint; logIndex: number | bigint }>(logs: T[]): T[] {
     logs.sort((a, b) => {
         const byBlock = cmpBigInt(a.blockNumber, b.blockNumber)
         if (byBlock !== 0) return byBlock
         return cmpBigInt(BigInt(a.logIndex), BigInt(b.logIndex))
     })
     return logs
+}
+
+export function computeReorgRewindPlan(cursorBlockNumber: bigint, confirmations: bigint): {
+    rewindFrom: bigint
+    cursorAfterRewind: CursorState
+} {
+    const safety = confirmations + 2n
+    const rewindFrom = cursorBlockNumber > safety ? cursorBlockNumber - safety : 0n
+    const cursorAfterRewind =
+        rewindFrom === 0n
+            ? { blockNumber: 0n, logIndex: -1n, blockHash: null }
+            : { blockNumber: rewindFrom - 1n, logIndex: -1n, blockHash: null }
+
+    return { rewindFrom, cursorAfterRewind }
 }
 
 function assertSafeIndex(index: bigint) {
@@ -70,16 +94,15 @@ async function handleReorgIfDetected(state: ElectionGroupState, confirmations: b
     if (cursor.blockNumber > 0n && cursor.blockHash) {
         const blk = await client.getBlock({ blockNumber: cursor.blockNumber })
         if (blk.hash !== cursor.blockHash) {
-            // Rewind by a safety window, not just 1 block.
-            const safety = confirmations + 2n
-            const rewindTo = cursor.blockNumber > safety ? cursor.blockNumber - safety : 0n
+            const { rewindFrom, cursorAfterRewind } = computeReorgRewindPlan(cursor.blockNumber, confirmations)
 
             await withTransaction(async (tx) => {
                 await tx.query(
                     `DELETE FROM members WHERE election_address=$1 AND block_number >= $2`,
-                    [state.election, rewindTo.toString()]
+                    [state.election, rewindFrom.toString()]
                 )
-                await setSyncCursor(state.election, { blockNumber: rewindTo, blockHash: null })
+
+                await setSyncCursor(state.election, cursorAfterRewind, tx)
             })
 
             await rebuildStateFromDb(state)
@@ -90,7 +113,7 @@ async function handleReorgIfDetected(state: ElectionGroupState, confirmations: b
     return { didReorg: false, cursor }
 }
 
-type PendingAdd = {
+export type PendingAdd = {
     groupId: bigint
     leafIndex: number
     commitment: bigint
@@ -102,7 +125,7 @@ type PendingAdd = {
  * Build and validate a deterministic batch of "add member" operations from logs.
  * IMPORTANT: does NOT mutate in-memory state.
  */
-function buildPendingAdds(state: ElectionGroupState, logs: any[]): PendingAdd[] {
+export function buildPendingAdds(state: ElectionGroupState, logs: any[]): PendingAdd[] {
     const pending: PendingAdd[] = []
 
     let expected = state.size
@@ -135,15 +158,31 @@ function buildPendingAdds(state: ElectionGroupState, logs: any[]): PendingAdd[] 
     return pending
 }
 
-async function persistBatch(
+type PersistBatchDeps = {
+    withTransaction: typeof withTransaction
+    upsertMember: typeof upsertMember
+    setSyncCursor: typeof setSyncCursor
+}
+
+const defaultPersistBatchDeps: PersistBatchDeps = {
+    withTransaction,
+    upsertMember,
+    setSyncCursor
+}
+
+export async function persistBatch(
     state: ElectionGroupState,
     pending: PendingAdd[],
     toBlockNumber: bigint,
-    toBlockHash: `0x${string}`
+    toBlockHash: `0x${string}`,
+    deps: PersistBatchDeps = defaultPersistBatchDeps
 ) {
-    await withTransaction(async (tx) => {
+    const lastLogIndex =
+        pending.length > 0 ? pending[pending.length - 1].logIndex : -1n
+
+    await deps.withTransaction(async (tx) => {
         for (const a of pending) {
-            await upsertMember(
+            await deps.upsertMember(
                 {
                     election: state.election,
                     groupId: a.groupId.toString(),
@@ -156,7 +195,11 @@ async function persistBatch(
             )
         }
 
-        await setSyncCursor(state.election, { blockNumber: toBlockNumber, blockHash: toBlockHash })
+        await deps.setSyncCursor(
+            state.election,
+            { blockNumber: toBlockNumber, logIndex: lastLogIndex, blockHash: toBlockHash },
+            tx
+        )
     })
 }
 
@@ -201,7 +244,7 @@ export async function runIndexerLoop(state: ElectionGroupState, opts: IndexerOpt
             }
 
             const cursor = reorgResult.cursor
-            let from = computeNextFromBlock(cursor.blockNumber)
+            let from = computeNextFromCursor(cursor)
 
             if (from > finalizedBlock) {
                 await sleep(DEFAULT_POLL_MS)

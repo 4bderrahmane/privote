@@ -69,6 +69,8 @@ export class ElectionGroupState {
      *  @param members
      */
     rebuildFromMembers(members: { leafIndex: number; commitment: bigint }[]) {
+        this.assertContiguousMembers(members)
+
         const commitments = members.map((m) => m.commitment)
         this.group = new Group(commitments)
 
@@ -98,5 +100,30 @@ export class ElectionGroupState {
 
         this.group.addMember(commitment)
         this.commitmentToIndex.set(key, leafIndex)
+    }
+
+    private assertContiguousMembers(members: { leafIndex: number; commitment: bigint }[]) {
+        const seenCommitments = new Set<string>()
+
+        for (let i = 0; i < members.length; i++) {
+            const member = members[i]
+
+            if (!Number.isSafeInteger(member.leafIndex) || member.leafIndex < 0) {
+                throw new Error(`Invalid leafIndex at position=${i}: ${member.leafIndex}`)
+            }
+
+            if (member.leafIndex !== i) {
+                throw new Error(
+                    `Non-contiguous member snapshot at position=${i}: got leafIndex=${member.leafIndex}`
+                )
+            }
+
+            const key = member.commitment.toString()
+            if (seenCommitments.has(key)) {
+                throw new Error(`Duplicate commitment in snapshot at leafIndex=${member.leafIndex}`)
+            }
+
+            seenCommitments.add(key)
+        }
     }
 }

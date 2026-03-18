@@ -37,19 +37,21 @@ export async function migrate() {
 
 export type SyncCursor = {
     blockNumber: bigint
+    logIndex: bigint
     blockHash: string | null
 }
 
 export async function getSyncCursor(election: string): Promise<SyncCursor> {
     const r = await pool.query(
-        `SELECT last_processed_block, last_processed_block_hash
+        `SELECT last_processed_block, last_processed_log_index, last_processed_block_hash
          FROM sync_state
          WHERE election_address = $1`,
         [election]
     )
-    if (r.rowCount === 0) return {blockNumber: 0n, blockHash: null}
+    if (r.rowCount === 0) return {blockNumber: 0n, logIndex: -1n, blockHash: null}
     return {
         blockNumber: BigInt(r.rows[0].last_processed_block),
+        logIndex: BigInt(r.rows[0].last_processed_log_index),
         blockHash: (r.rows[0].last_processed_block_hash as string | null) ?? null
     }
 }
@@ -59,19 +61,24 @@ export async function getLastProcessedBlock(election: string): Promise<bigint> {
 }
 
 export async function setLastProcessedBlock(election: string, block: bigint) {
-    await setSyncCursor(election, {blockNumber: block, blockHash: null})
+    await setSyncCursor(election, {blockNumber: block, logIndex: -1n, blockHash: null})
 }
 
-export async function setSyncCursor(election: string, cursor: SyncCursor) {
-    await pool.query(
+export async function setSyncCursor(
+    election: string,
+    cursor: SyncCursor,
+    client: pg.PoolClient | pg.Pool = pool
+) {
+    await client.query(
         `
-            INSERT INTO sync_state (election_address, last_processed_block, last_processed_block_hash)
-            VALUES ($1, $2, $3)
+            INSERT INTO sync_state (election_address, last_processed_block, last_processed_log_index, last_processed_block_hash)
+            VALUES ($1, $2, $3, $4)
             ON CONFLICT (election_address)
                 DO UPDATE SET last_processed_block      = EXCLUDED.last_processed_block,
+                              last_processed_log_index  = EXCLUDED.last_processed_log_index,
                               last_processed_block_hash = EXCLUDED.last_processed_block_hash
         `,
-        [election, cursor.blockNumber.toString(), cursor.blockHash]
+        [election, cursor.blockNumber.toString(), cursor.logIndex.toString(), cursor.blockHash]
     )
 }
 
