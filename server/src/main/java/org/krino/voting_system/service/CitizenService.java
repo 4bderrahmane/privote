@@ -2,6 +2,7 @@ package org.krino.voting_system.service;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.krino.voting_system.dto.citizen.CitizenSelfUpdateRequest;
 import org.krino.voting_system.dto.citizen.CitizenSyncRequest;
 import org.krino.voting_system.entity.Citizen;
 import org.krino.voting_system.exception.ResourceNotFoundException;
@@ -29,6 +30,47 @@ public class CitizenService
     {
         return citizenRepository.findByKeycloakIdAndIsDeletedFalse(uuid)
                 .orElseThrow(() -> new ResourceNotFoundException("Citizen not found with UUID: " + uuid));
+    }
+
+    public Citizen updateOwnProfile(UUID uuid, CitizenSelfUpdateRequest request)
+    {
+        Citizen citizen = getCitizenByUUID(uuid);
+
+        if (request.getFirstName() != null)
+        {
+            citizen.setFirstName(requireNonBlank("firstName", request.getFirstName()));
+        }
+        if (request.getLastName() != null)
+        {
+            citizen.setLastName(requireNonBlank("lastName", request.getLastName()));
+        }
+        if (request.getEmail() != null)
+        {
+            citizen.setEmail(requireNonBlank("email", request.getEmail()));
+            citizen.setEmailVerified(false);
+        }
+        if (request.getPhoneNumber() != null)
+        {
+            citizen.setPhoneNumber(normalizeNullable(request.getPhoneNumber()));
+        }
+        if (request.getAddress() != null)
+        {
+            citizen.setAddress(normalizeNullable(request.getAddress()));
+        }
+        if (request.getRegion() != null)
+        {
+            citizen.setRegion(normalizeNullable(request.getRegion()));
+        }
+        if (request.getBirthPlace() != null)
+        {
+            citizen.setBirthPlace(normalizeNullable(request.getBirthPlace()));
+        }
+        if (request.getBirthDate() != null)
+        {
+            citizen.setBirthDate(request.getBirthDate());
+        }
+
+        return citizenRepository.save(citizen);
     }
 
     public void sync(CitizenSyncRequest req)
@@ -67,5 +109,22 @@ public class CitizenService
                 .orElseThrow(() -> new ResourceNotFoundException("Citizen not found with UUID: " + uuid));
         citizen.setDeleted(true);
         citizenRepository.save(citizen);
+    }
+
+    private String requireNonBlank(String fieldName, String value)
+    {
+        String normalized = normalizeNullable(value);
+        if (normalized == null)
+        {
+            throw new IllegalArgumentException(fieldName + " must not be blank");
+        }
+        return normalized;
+    }
+
+    private String normalizeNullable(String value)
+    {
+        if (value == null) return null;
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }
