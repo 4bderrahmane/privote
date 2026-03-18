@@ -2,6 +2,7 @@ package org.krino.voting_system.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.krino.voting_system.dto.election.ElectionCreateDto;
+import org.krino.voting_system.dto.election.ElectionPatchDto;
 import org.krino.voting_system.entity.Election;
 import org.krino.voting_system.service.ElectionService;
 import org.springframework.http.ResponseEntity;
@@ -18,21 +19,29 @@ public class ElectionController
 {
     private final ElectionService electionService;
 
-//    @PostMapping("/create")
+    @PostMapping("/create")
 //    @PreAuthorize("hasRole('admin')")
-//    public ResponseEntity<Election> createElection(@RequestBody ElectionCreateDto election)
-//    {
-//        Election createdElection = electionService.createElection(election);
-//        return ResponseEntity.ok(createdElection);
-//    }
-//
-//    @PutMapping("/{uuid}")
+    public ResponseEntity<Election> createElection(@RequestBody ElectionCreateDto election)
+    {
+        Election createdElection = electionService.createElection(election);
+        return ResponseEntity.ok(createdElection);
+    }
+
+    @PutMapping("/{uuid}")
 //    @PreAuthorize("hasRole('admin')")
-//    public ResponseEntity<Election> updateElection(@PathVariable UUID uuid, @RequestBody ElectionCreateDto election)
-//    {
-//        Election updatedElection = electionService.updateElection(uuid, election);
-//        return ResponseEntity.ok(updatedElection);
-//    }
+    public ResponseEntity<Election> updateElection(@PathVariable UUID uuid, @RequestBody ElectionCreateDto election)
+    {
+        Election updatedElection = electionService.updateElection(uuid, election);
+        return ResponseEntity.ok(updatedElection);
+    }
+
+    @PatchMapping("/{uuid}")
+//    @PreAuthorize("hasRole('admin')")
+    public ResponseEntity<Election> patchElection(@PathVariable UUID uuid, @RequestBody ElectionPatchDto patch)
+    {
+        Election patchedElection = electionService.patchElection(uuid, patch);
+        return ResponseEntity.ok(patchedElection);
+    }
 
     @GetMapping("/{uuid}")
     public ResponseEntity<Election> getElectionByUUID(@PathVariable UUID uuid)
