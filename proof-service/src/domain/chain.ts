@@ -12,10 +12,22 @@ export const ELECTION_ABI = parseAbi([
     "event MemberAdded(uint256 indexed groupId, uint256 index, uint256 identityCommitment, uint256 merkleTreeRoot)"
 ] as const)
 
+export const ELECTION_FACTORY_ABI = parseAbi([
+    "event ElectionDeployed(bytes16 indexed uuid, uint256 indexed externalNullifier, address indexed coordinator, address election, uint256 endTime)"
+] as const)
+
 export function electionContract(address: Address) {
     return getContract({
         address,
         abi: ELECTION_ABI,
+        client
+    })
+}
+
+export function electionFactoryContract(address: Address) {
+    return getContract({
+        address,
+        abi: ELECTION_FACTORY_ABI,
         client
     })
 }
