@@ -2,6 +2,7 @@ package org.krino.voting_system.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.krino.voting_system.dto.candidate.CandidateCreateDto;
+import org.krino.voting_system.dto.candidate.CandidatePatchDto;
 import org.krino.voting_system.entity.Candidate;
 import org.krino.voting_system.service.CandidateService;
 import org.springframework.http.ResponseEntity;
@@ -34,11 +35,26 @@ public class CandidateController
         return ResponseEntity.ok(updatedCandidate);
     }
 
+    @PatchMapping("/{uuid}")
+    @PreAuthorize("hasRole('admin')")
+    public ResponseEntity<Candidate> patchCandidate(@PathVariable UUID uuid, @RequestBody CandidatePatchDto candidate)
+    {
+        Candidate patchedCandidate = candidateService.patchCandidate(uuid, candidate);
+        return ResponseEntity.ok(patchedCandidate);
+    }
+
     @GetMapping("/{uuid}")
     public ResponseEntity<Candidate> getCandidateByUUID(@PathVariable UUID uuid)
     {
         Candidate candidate = candidateService.getCandidateByPublicId(uuid);
         return ResponseEntity.ok(candidate);
+    }
+
+    @GetMapping("/election/{electionUuid}")
+    public ResponseEntity<List<Candidate>> getCandidatesByElectionUUID(@PathVariable UUID electionUuid)
+    {
+        List<Candidate> candidates = candidateService.getCandidatesByElectionPublicId(electionUuid);
+        return ResponseEntity.ok(candidates);
     }
 
     @DeleteMapping("/{uuid}")
