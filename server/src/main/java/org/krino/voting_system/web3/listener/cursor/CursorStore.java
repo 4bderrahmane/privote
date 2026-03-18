@@ -7,5 +7,5 @@ public interface CursorStore
 {
     Optional<Cursor> load(String key);
 
-    void save(String key, BigInteger lastProcessedBlock, BigInteger lastProcessedLogIndex);
+    void save(String key, Cursor cursor);
 }
