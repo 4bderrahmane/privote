@@ -11,4 +11,8 @@ import java.util.UUID;
 public interface PartyRepository extends JpaRepository<Party, Long>
 {
     Optional<Party> findByPublicId(UUID publicId);
+
+    boolean existsByNameIgnoreCase(String name);
+
+    boolean existsByNameIgnoreCaseAndPublicIdNot(String name, UUID publicId);
 }
