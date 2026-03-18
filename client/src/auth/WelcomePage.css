@@ -34,7 +34,7 @@
 .shape-2 {
     width: 400px;
     height: 400px;
-    background: #8b5cf6; /* Purple accent */
+    background: #4d79a8;
     bottom: -100px;
     right: -100px;
     animation-delay: -5s;
@@ -70,11 +70,11 @@
     justify-content: center;
     width: 90px;
     height: 90px;
-    background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%);
+    background: linear-gradient(135deg, #e8f1fb 0%, #dce9f8 100%);
     border-radius: 50%;
     margin-bottom: 24px;
-    color: #4f46e5;
-    box-shadow: 0 10px 20px rgba(79, 70, 229, 0.15);
+    color: #0f4c81;
+    box-shadow: 0 10px 20px rgba(15, 76, 129, 0.15);
     animation: float-icon 6s ease-in-out infinite;
 }
 
@@ -92,7 +92,7 @@
 }
 
 .highlight-text {
-    background: linear-gradient(90deg, #0b69ff, #8b5cf6);
+    background: linear-gradient(90deg, #0f4c81, #256fa8);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     display: block;

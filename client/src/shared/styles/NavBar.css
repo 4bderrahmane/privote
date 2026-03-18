@@ -2,12 +2,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 2rem;
-    height: 60px;
-    background-color: #ffffff;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    font-family: inherit;
-    font-size: inherit;
+    gap: 16px;
+    padding: 10px 22px;
+    min-height: 72px;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-sm);
 }
 
 .navbar a,
@@ -20,15 +21,17 @@
 }
 
 .navbar-brand a {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #2563eb;
+    color: var(--primary);
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
     text-decoration: none;
 }
 
 .navbar-menu {
     display: flex;
     align-items: center;
+    gap: 18px;
 }
 
 .navbar-links {
@@ -36,166 +39,125 @@
     list-style: none;
     margin: 0;
     padding: 0;
+    gap: 14px;
 }
 
 .navbar-links li {
-    margin-right: 1.5rem;
-}
-
-.navbar-links li.active {
-    /* background-color: #e6f7ff; lol */
-    border-bottom: 2px solid #1890ff;
-}
-
-.navbar-links li.active a {
-    color: #1890ff;
-    font-weight: bold;
+    display: flex;
+    align-items: center;
 }
 
 .navbar-links a {
-    color: #4b5563;
+    color: var(--muted);
     text-decoration: none;
-    font-weight: 500;
-    transition: color 0.3s;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 8px 10px;
+    border-radius: 10px;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.navbar-links li.active a {
+    color: var(--primary);
+    background: var(--primary-soft);
 }
 
 .navbar-links a:hover {
-    color: #2563eb;
-}
-
-.navbar-user {
-    position: relative;
-    margin-left: 1rem;
-}
-
-.user-profile {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 4px;
-}
-
-.user-profile:hover {
-    background-color: #f3f4f6;
-}
-
-.user-name {
-    font-weight: 500;
-    margin-right: 0.5rem;
-}
-
-.dropdown-icon {
-    font-size: 0.75rem;
-    color: #6b7280;
-}
-
-.dropdown-menu {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 10px); /* Position below the user profile with a small gap */
-    min-width: 180px; /* Set a minimum width */
-    background-color: white;
-    border-radius: 4px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    z-index: 10;
-    padding: 0.5rem 0;
-    width: auto; /* Allow width to be determined by content */
-}
-
-.dropdown-item {
-    display: flex;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    color: #4b5563;
-    text-decoration: none;
-    transition: background-color 0.3s;
-}
-
-.dropdown-item .dropdown-icon-svg {
-    vertical-align: middle;
-    font-size: 1.2em;
-    margin-bottom: 2px;
-    margin-right: 0.5em;
-}
-
-.dropdown-item:hover {
-    background-color: #f3f4f6;
-}
-
-.dropdown-divider {
-    height: 1px;
-    background-color: #e5e7eb;
-    margin: 0.5rem 0;
-}
-
-.logout-button {
-    width: 100%;
-    text-align: left;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-    color: #ef4444;
-}
-
-.logout-button:hover {
-    background-color: #fef2f2;
+    color: var(--primary);
+    background: #edf3fb;
 }
 
 .navbar-actions {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 14px;
 }
 
-/* Remove underline from welcome message username */
-.welcome-message span,
-.welcome-username,
-.user-welcome span {
-    text-decoration: none !important;
-    border-bottom: none !important;
+.navbar-user {
+    position: relative;
 }
 
-/*
-  Try to identify the specific class used for the "Welcome, username" message
-  or the span wrapping the username within the Navbar.
-  Common examples might be .navbar-user-greeting, .welcome-text, .username-display, etc.
-  Replace '.navbar-username-span-class' with the actual class if you know it.
-*/
-
-/* General approach for spans within typical navbar user sections */
-.navbar .user-info span,
-.navbar .user-greeting span,
-.navbar .welcome-message span,
-.navbar .navbar-text span, /* If it's a generic text element in the navbar */
-.navbar p span, /* If the welcome message is in a paragraph */
-.navbar-username-span-class /* Replace with actual class if known */ {
-    text-decoration: none !important;
-    border-bottom: none !important;
-    background-image: none !important; /* In case underline is a background image */
-    box-shadow: none !important; /* In case underline is a shadow */
-    /* Remove any pseudo-elements that might be creating a line */
-    position: relative; /* Often needed if ::after was positioned absolutely */
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--line);
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 8px 12px;
+    cursor: pointer;
+    color: var(--text);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.navbar .user-info span::after,
-.navbar .user-info span::before,
-.navbar .user-greeting span::after,
-.navbar .user-greeting span::before,
-.navbar .welcome-message span::after,
-.navbar .welcome-message span::before,
-.navbar .navbar-text span::after,
-.navbar .navbar-text span::before,
-.navbar p span::after,
-.navbar p span::before,
-.navbar-username-span-class::after,
-.navbar-username-span-class::before {
-    display: none !important;
-    content: '' !important;
-    height: 0 !important;
-    border: none !important;
-    background: none !important;
+.user-profile:hover {
+    border-color: #b8c6dd;
+    box-shadow: var(--shadow-sm);
+}
+
+.user-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.dropdown-icon {
+    color: #72809b;
+    font-size: 0.72rem;
+}
+
+.dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 10px);
+    min-width: 220px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+    z-index: 20;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    text-decoration: none;
+    text-align: left;
+    font-weight: 500;
+    font-size: 0.92rem;
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.dropdown-item .dropdown-icon-svg {
+    font-size: 1.08rem;
+    color: #6a7a93;
+}
+
+.dropdown-item:hover {
+    background: #edf3fb;
+    color: var(--text);
+}
+
+.dropdown-divider {
+    height: 1px;
+    margin: 8px 4px;
+    background: var(--line);
+}
+
+.logout-button {
+    color: var(--danger-text);
+}
+
+.logout-button:hover {
+    background: var(--danger-soft);
 }
 
 .dropdown-parent {
@@ -205,16 +167,15 @@
 .dropdown-submenu {
     display: none;
     position: absolute;
-    right: 100%;
-    left: auto;
+    right: calc(100% + 8px);
     top: 0;
-    min-width: 180px;
-    background: #fff;
-    border-radius: 4px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    z-index: 20;
-    padding: 0.5rem 0;
-    margin-right: 4px;
+    min-width: 200px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+    z-index: 30;
 }
 
 .dropdown-parent:hover .dropdown-submenu,
@@ -222,17 +183,16 @@
     display: block;
 }
 
-.dropdown-submenu .dropdown-item {
-    white-space: nowrap;
-    padding: 0.5rem 1rem;
-    color: #4b5563;
-    background: none;
-    border: none;
-    text-align: left;
-    width: 100%;
-}
+@media (max-width: 980px) {
+    .navbar {
+        padding: 10px 14px;
+    }
 
-.dropdown-submenu .dropdown-item:hover {
-    background: #f3f4f6;
-    color: #2563eb;
+    .navbar-menu {
+        gap: 10px;
+    }
+
+    .navbar-links {
+        display: none;
+    }
 }

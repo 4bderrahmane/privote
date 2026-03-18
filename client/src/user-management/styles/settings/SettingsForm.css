@@ -1,131 +1,171 @@
 .settings-card {
     background-color: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 24px;
-    max-width: 600px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+    max-width: 760px;
 }
 
 .settings-card h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-top: 0;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #f3f4f6;
-    padding-bottom: 16px;
+    margin: 0 0 18px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text);
+    padding-bottom: 12px;
+    border-bottom: 1px solid #ecf1f8;
 }
 
 .form-content {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
 }
 
 .info-row {
     display: flex;
-    flex-direction: row;
     align-items: center;
-    gap: 16px;
-    margin-bottom: 12px;
+    gap: 14px;
 }
 
 .info-label {
-    min-width: 140px;
-    text-align: left;
-    font-weight: 500;
-    color: #374151;
+    min-width: 148px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #334155;
 }
 
 .info-value {
     flex: 1;
     width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 1rem;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    font-family: inherit;
+    border: 1px solid #cfdae8;
+    border-radius: 10px;
+    background: #ffffff;
+    color: var(--text);
+    padding: 9px 12px;
+    font-size: 0.95rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .info-value:focus {
     outline: none;
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+    border-color: #9db8d8;
+    box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.12);
+}
+
+.info-value:disabled {
+    background-color: #f3f6fb;
+    color: #6b7280;
+    cursor: not-allowed;
 }
 
 .form-footer {
-    margin-top: 24px;
+    margin-top: 20px;
     text-align: right;
 }
 
 .button-group {
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
+    gap: 10px;
 }
 
 .settings-button {
-    padding: 10px 16px;
     border: none;
-    border-radius: 6px;
+    border-radius: 10px;
+    padding: 10px 16px;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.92rem;
+    color: #ffffff;
+    background: var(--primary);
     cursor: pointer;
-    transition: background-color 0.2s;
-    background-color: #4f46e5;
-    color: white;
-}
-
-.settings-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+    transition: background-color 0.15s ease, transform 0.08s ease;
 }
 
 .settings-button:hover:not(:disabled) {
-    background-color: #4338ca;
+    background: var(--primary-hover);
+}
+
+.settings-button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.settings-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
 }
 
 .secondary-button {
-    background-color: #e5e7eb;
-    color: #1f2937;
+    background: #e5ebf4;
+    color: #243447;
 }
 
 .secondary-button:hover:not(:disabled) {
-    background-color: #d1d5db;
+    background: #d9e2ef;
 }
 
 .danger-zone {
-    border-color: #ef4444;
+    border-color: #efc5c5;
+    background: #fffdfd;
+}
+
+.danger-zone p {
+    margin: 0;
+    color: var(--muted);
 }
 
 .danger-header {
-    color: #dc2626;
+    color: var(--danger-text);
 }
 
 .danger-button {
-    background-color: #dc2626;
+    background: #c73831;
 }
 
 .danger-button:hover:not(:disabled) {
-    background-color: #b91c1c;
+    background: #a92b25;
 }
 
 .settings-success {
-    margin-top: 16px;
-    color: #16a34a;
-    text-align: left;
+    margin-top: 14px;
+    color: var(--success-text);
+    background: var(--success-soft);
+    border: 1px solid #b6e9da;
+    border-radius: 10px;
+    padding: 10px 12px;
 }
 
 .settings-error {
-    margin-top: 16px;
-    color: #dc2626;
-    text-align: left;
+    margin-top: 14px;
+    color: var(--danger-text);
+    background: var(--danger-soft);
+    border: 1px solid #f3b2b2;
+    border-radius: 10px;
+    padding: 10px 12px;
 }
 
 .settings-center-container {
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    min-height: 60vh;
     width: 100%;
+}
+
+@media (max-width: 760px) {
+    .settings-card {
+        padding: 16px;
+    }
+
+    .info-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .info-label {
+        min-width: 0;
+    }
+
+    .button-group {
+        flex-wrap: wrap;
+    }
 }

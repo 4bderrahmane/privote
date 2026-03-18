@@ -1,0 +1,124 @@
+.myvotes-card {
+    max-width: 720px;
+}
+
+.myvotes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.myvotes-item {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: #ffffff;
+}
+
+.myvotes-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.myvotes-election-name {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.myvotes-status {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+}
+
+.myvotes-status--confirmed {
+    color: var(--success-text);
+    background: var(--success-soft);
+}
+
+.myvotes-status--pending {
+    color: var(--warning-text);
+    background: var(--warning-soft);
+}
+
+.myvotes-item-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.myvotes-detail-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.myvotes-label {
+    min-width: 84px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.myvotes-value {
+    color: #334155;
+    font-size: 0.9rem;
+}
+
+.myvotes-hash-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.myvotes-hash {
+    background: #ecf2fb;
+    border: 1px solid #d2ddeb;
+    color: #2a3649;
+    border-radius: 8px;
+    padding: 4px 7px;
+    font-size: 0.8rem;
+    font-family: "Fira Code", "IBM Plex Mono", monospace;
+}
+
+.myvotes-copy-btn {
+    border: 1px solid #d2ddeb;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 4px 7px;
+    cursor: pointer;
+}
+
+.myvotes-copy-btn:hover {
+    background: #f3f7fc;
+}
+
+.myvotes-copy-btn:focus-visible {
+    outline: 2px solid #9db8d8;
+    outline-offset: 1px;
+}
+
+@media (max-width: 560px) {
+    .myvotes-item-header {
+        align-items: flex-start;
+    }
+
+    .myvotes-detail-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .myvotes-label {
+        min-width: 0;
+    }
+}

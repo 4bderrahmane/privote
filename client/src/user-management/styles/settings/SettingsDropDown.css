@@ -1,60 +1,30 @@
-/* src/components/settings/SettingsDropdown.css */
-.settings-nav-container {
-    /* The container can be simplified as it no longer needs a bottom border */
-}
-
 .settings-nav {
     display: flex;
-    flex-direction: column; /* This is the key change for vertical layout */
-    gap: 4px; /* Spacing between vertical items */
+    flex-direction: column;
+    gap: 4px;
 }
 
 .settings-nav-link {
-    padding: 8px 16px;
-    color: #4b5563;
+    color: var(--muted);
     text-decoration: none;
-    border-radius: 6px;
-    font-weight: 500;
-    transition: background-color 0.2s, color 0.2s;
-    position: relative; /* Needed for the active indicator */
-    white-space: nowrap; /* Prevent text from wrapping to multiple lines */
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 8px 10px;
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .settings-nav-link:hover {
-    background-color: #f3f4f6;
-    color: #111827;
+    background-color: #edf3fb;
+    color: var(--text);
 }
 
 .settings-nav-link.active {
-    color: #2563eb;
-    font-weight: 600;
-    background-color: #eff6ff; /* A light blue background for the active link */
-}
-
-/* The ::after pseudo-element is now a vertical bar on the left */
-.settings-nav-link.active::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 3px; /* Width of the vertical bar */
-    height: 100%; /* Full height of the link */
-    background-color: #2563eb;
-    border-top-left-radius: 3px;
-    border-bottom-left-radius: 3px;
+    background: var(--primary-soft);
+    color: var(--primary);
 }
 
 .settings-nav-link-delete.active {
-    color: #dc2626;
-    background-color: #fef2f2; /* Light red background for delete */
-}
-
-.settings-nav-link-delete.active::after {
-    background-color: #dc2626;
-}
-
-@media (max-width: 640px) {
-    .settings-nav {
-        gap: 4px;
-    }
+    background: var(--danger-soft);
+    color: var(--danger-text);
 }
