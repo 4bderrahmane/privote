@@ -46,8 +46,12 @@ export async function migrate() {
         (
             factory_address          TEXT PRIMARY KEY,
             last_processed_block     BIGINT NOT NULL DEFAULT 0,
-            last_processed_log_index BIGINT NOT NULL DEFAULT -1
+            last_processed_log_index BIGINT NOT NULL DEFAULT -1,
+            last_processed_block_hash TEXT
         );
+
+        ALTER TABLE factory_sync_state
+            ADD COLUMN IF NOT EXISTS last_processed_block_hash TEXT;
     `)
 }
 
@@ -72,17 +76,10 @@ export async function getSyncCursor(election: string): Promise<SyncCursor> {
     }
 }
 
-export async function getLastProcessedBlock(election: string): Promise<bigint> {
-    return (await getSyncCursor(election)).blockNumber
-}
-
-export async function setLastProcessedBlock(election: string, block: bigint) {
-    await setSyncCursor(election, {blockNumber: block, logIndex: -1n, blockHash: null})
-}
-
 export type FactorySyncCursor = {
     blockNumber: bigint
     logIndex: bigint
+    blockHash: string | null
 }
 
 export async function getFactorySyncCursor(
@@ -90,20 +87,21 @@ export async function getFactorySyncCursor(
     startBlock: bigint = 0n
 ): Promise<FactorySyncCursor> {
     const r = await pool.query(
-        `SELECT last_processed_block, last_processed_log_index
+        `SELECT last_processed_block, last_processed_log_index, last_processed_block_hash
          FROM factory_sync_state
          WHERE factory_address = $1`,
         [factory]
     )
 
     if (r.rowCount === 0) {
-        if (startBlock === 0n) return { blockNumber: 0n, logIndex: -1n }
-        return { blockNumber: startBlock - 1n, logIndex: -1n }
+        if (startBlock === 0n) return { blockNumber: 0n, logIndex: -1n, blockHash: null }
+        return { blockNumber: startBlock - 1n, logIndex: -1n, blockHash: null }
     }
 
     return {
         blockNumber: BigInt(r.rows[0].last_processed_block),
-        logIndex: BigInt(r.rows[0].last_processed_log_index)
+        logIndex: BigInt(r.rows[0].last_processed_log_index),
+        blockHash: (r.rows[0].last_processed_block_hash as string | null) ?? null
     }
 }
 
@@ -114,13 +112,14 @@ export async function setFactorySyncCursor(
 ) {
     await client.query(
         `
-            INSERT INTO factory_sync_state (factory_address, last_processed_block, last_processed_log_index)
-            VALUES ($1, $2, $3)
+            INSERT INTO factory_sync_state (factory_address, last_processed_block, last_processed_log_index, last_processed_block_hash)
+            VALUES ($1, $2, $3, $4)
             ON CONFLICT (factory_address)
                 DO UPDATE SET last_processed_block     = EXCLUDED.last_processed_block,
-                              last_processed_log_index = EXCLUDED.last_processed_log_index
+                              last_processed_log_index = EXCLUDED.last_processed_log_index,
+                              last_processed_block_hash = EXCLUDED.last_processed_block_hash
         `,
-        [factory, cursor.blockNumber.toString(), cursor.logIndex.toString()]
+        [factory, cursor.blockNumber.toString(), cursor.logIndex.toString(), cursor.blockHash]
     )
 }
 
@@ -217,16 +216,16 @@ export async function loadElectionAddresses(): Promise<`0x${string}`[]> {
     return r.rows.map((row) => String(row.election_address).toLowerCase() as `0x${string}`)
 }
 
-export async function deleteMembersFromLeafIndex(client: pg.PoolClient, params: {
-    election: string;
-    fromLeafIndex: bigint
-}) {
+export async function deleteFactoryDiscoveredElectionsFromBlock(
+    fromBlock: bigint,
+    client: pg.PoolClient | pg.Pool = pool
+) {
     await client.query(
         `DELETE
-         FROM members
-         WHERE election_address = $1
-           AND leaf_index >= $2`,
-        [params.election, params.fromLeafIndex.toString()]
+         FROM elections
+         WHERE source = 'factory'
+           AND discovered_block >= $1`,
+        [fromBlock.toString()]
     )
 }
 
