@@ -14,6 +14,7 @@ import org.web3j.abi.EventEncoder;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.methods.request.EthFilter;
+import org.web3j.protocol.core.methods.response.EthBlock;
 import org.web3j.protocol.core.methods.response.EthBlockNumber;
 import org.web3j.protocol.core.methods.response.EthLog;
 import org.web3j.protocol.core.methods.response.Log;
@@ -56,7 +57,16 @@ public class ElectionEventListener
 
         if (safeTo.signum() < 0) return;
 
-        Cursor cursor = loadOrInitCursor();
+        Cursor cursor;
+        try
+        {
+            cursor = validateCursor(loadOrInitCursor());
+        } catch (IOException e)
+        {
+            log.warn("Failed to validate web3 listener cursor: {}", e.getMessage(), e);
+            return;
+        }
+
         if (cursor.nextBlock().compareTo(safeTo) > 0) return;
 
         // IMPORTANT: resume filter should be based on the INITIAL cursor only
@@ -83,8 +93,7 @@ public class ElectionEventListener
 
                 // If no events occurred, we still want to move the cursor forward,
                 // otherwise we will re-scan the same empty block range on the next poll.
-                Cursor afterChunk = new Cursor(toBlock.add(BigInteger.ONE), BigInteger.ZERO);
-                cursor = maxCursor(cursor, afterChunk);
+                cursor = cursor.advancePastBlock(toBlock, fetchBlockHash(toBlock));
                 saveCursor(cursor);
 
                 fromBlock = toBlock.add(BigInteger.ONE);
@@ -112,12 +121,12 @@ public class ElectionEventListener
 
     private Cursor loadOrInitCursor()
     {
-        return cursorStore.load(CURSOR_KEY).orElseGet(() -> new Cursor(props.getStartBlock() != null ? props.getStartBlock() : BigInteger.ZERO, BigInteger.ZERO));
+        return cursorStore.load(CURSOR_KEY).orElseGet(() -> Cursor.initial(props.getStartBlock()));
     }
 
     private void saveCursor(Cursor cursor)
     {
-        cursorStore.save(CURSOR_KEY, cursor.nextBlock(), cursor.nextLogIndex());
+        cursorStore.save(CURSOR_KEY, cursor);
     }
 
     private List<Log> fetchElectionDeployedLogs(String factoryAddress, BigInteger from, BigInteger to) throws IOException
@@ -165,7 +174,7 @@ public class ElectionEventListener
 
             handler.onElectionDeployed(event);
 
-            current = new Cursor(bn, li.add(BigInteger.ONE));
+            current = current.advanceToProcessedLog(bn, li, normalizeHash(logObj.getBlockHash()));
             saveCursor(current);
         }
 
@@ -203,17 +212,41 @@ public class ElectionEventListener
     }
 
 
-    private static Cursor maxCursor(Cursor a, Cursor b)
+    private Cursor validateCursor(Cursor cursor) throws IOException
     {
-        int c = compareCursor(a, b);
-        return c >= 0 ? a : b;
+        if (!cursor.hasProcessedBlock() || cursor.lastProcessedBlockHash() == null)
+        {
+            return cursor;
+        }
+
+        String currentHash = fetchBlockHash(cursor.lastProcessedBlock());
+        if (currentHash != null && currentHash.equalsIgnoreCase(cursor.lastProcessedBlockHash()))
+        {
+            return cursor;
+        }
+
+        Cursor rewound = cursor.rewindOneBlock(props.getStartBlock());
+        log.warn(
+                "Cursor block hash mismatch for key={}. persistedBlock={}, persistedHash={}, chainHash={}. Rewinding to block {}.",
+                CURSOR_KEY,
+                cursor.lastProcessedBlock(),
+                cursor.lastProcessedBlockHash(),
+                currentHash,
+                rewound.lastProcessedBlock()
+        );
+        saveCursor(rewound);
+        return rewound;
     }
 
-    private static int compareCursor(Cursor a, Cursor b)
+    private String fetchBlockHash(BigInteger blockNumber) throws IOException
     {
-        int blockCmp = a.nextBlock().compareTo(b.nextBlock());
-        if (blockCmp != 0) return blockCmp;
-        return a.nextLogIndex().compareTo(b.nextLogIndex());
+        EthBlock response = web3j.ethGetBlockByNumber(DefaultBlockParameter.valueOf(blockNumber), false).send();
+        if (response.hasError())
+        {
+            throw new IOException(response.getError().getMessage());
+        }
+        EthBlock.Block block = response.getBlock();
+        return block == null ? null : normalizeHash(block.getHash());
     }
 
     private static BigInteger min(BigInteger a, BigInteger b)
@@ -228,5 +261,14 @@ public class ElectionEventListener
         if (!a.startsWith("0x")) a = "0x" + a;
         if (a.length() != 42) return null;
         return a.toLowerCase();
+    }
+
+    private static String normalizeHash(String hash)
+    {
+        if (hash == null) return null;
+        String value = hash.trim();
+        if (value.isEmpty()) return null;
+        if (!value.startsWith("0x")) value = "0x" + value;
+        return value.toLowerCase();
     }
 }

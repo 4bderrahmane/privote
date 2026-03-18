@@ -4,8 +4,9 @@ import java.math.BigInteger;
 
 public record VoteAddedEvent(
         String electionAddress,
+        byte[] ciphertextHash,
+        BigInteger nullifier,
         byte[] ciphertext,
-        BigInteger nullifierHash,
         String txHash,
         BigInteger blockNumber,
         BigInteger logIndex)

@@ -5,7 +5,7 @@ import java.math.BigInteger;
 public record ElectionEndedEvent(
         String electionAddress,
         String coordinator,
-        byte[] decryptionKey,
+        byte[] decryptionMaterial,
         String txHash,
         BigInteger blockNumber,
         BigInteger logIndex
