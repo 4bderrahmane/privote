@@ -28,8 +28,7 @@ export type CiphertextLike = Uint8Array | `0x${string}`;
  * App-level code should normalize early and pass bigints.
  */
 export type FieldLike = bigint | number | string;
-const SNARK_SCALAR_FIELD =
-    21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+const SNARK_SCALAR_FIELD = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
 
 function parseHexBytes(hexValue: string): Uint8Array {
     const hex = hexValue.startsWith("0x") ? hexValue.slice(2) : hexValue;
@@ -171,7 +170,7 @@ export type CreateSemaphoreProofParams = {
 
     /**
      * Use your exact local wasm + zkey artifacts.
-     * This should not be optional in your app.
+     * Prefer getSemaphoreSnarkArtifacts() for the checked-in client artifacts.
      */
     snarkArtifacts: SnarkArtifacts;
 };
