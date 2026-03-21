@@ -1,0 +1,127 @@
+{
+  "list": {
+    "title": "Available elections",
+    "subtitle": "Browse elections you're eligible for and cast your vote when the election is open.",
+    "createButton": "Create election",
+    "deployButton": "Deploy",
+    "startButton": "Start",
+    "endButton": "End and publish key",
+    "endingButton": "Publishing key...",
+    "searchPlaceholder": "Search elections...",
+    "searchAria": "Search elections",
+    "loadingTitle": "Loading elections...",
+    "loadErrorTitle": "Unable to load elections",
+    "emptyTitle": "No elections found",
+    "emptySubtitle": "Try a different search term.",
+    "details": "Details",
+    "vote": "Vote",
+    "voted": "Voted",
+    "status": {
+      "open": "Open",
+      "closed": "Closed",
+      "upcoming": "Upcoming"
+    },
+    "stats": {
+      "candidates": "Candidates",
+      "eligibleVoters": "Eligible voters"
+    },
+    "messages": {
+      "notOpen": "This election is not open yet.",
+      "alreadyVoted": "You already voted in this election.",
+      "votingStarted": "Voting started for: {{title}}",
+      "openingDetails": "Opening details: {{title}}",
+      "loadFailed": "Unable to load elections.",
+      "deployed": "Election deployed: {{title}}",
+      "started": "Election started: {{title}}",
+      "ended": "Decryption key published for: {{title}}",
+      "vaultMissing": "No local encrypted key vault was found for this election. Paste the backup JSON to continue.",
+      "keyMismatch": "The selected encrypted backup does not match this election's public encryption key.",
+      "passwordRequired": "Vault password is required.",
+      "backupInvalid": "Election key backup JSON is invalid.",
+      "actionFailed": "Unable to complete the election lifecycle action."
+    },
+    "dialog": {
+      "title": "Publish election decryption key",
+      "subtitle": "Unlock the encrypted private key locally, then publish it on-chain so everyone can decrypt ballots after voting ends.",
+      "password": "Vault password",
+      "backupJson": "Encrypted key backup JSON",
+      "backupPlaceholder": "Paste the downloaded election-key JSON only if this browser does not already have the vault.",
+      "cancel": "Cancel",
+      "confirm": "Publish decryption key"
+    }
+  },
+  "create": {
+    "title": "Create election",
+    "subtitle": "A fresh election encryption keypair is generated in your browser. Only the public key is sent to the backend.",
+    "back": "Back to elections",
+    "submit": "Create election",
+    "submitting": "Creating...",
+    "success": "Election \"{{title}}\" created. Encrypted key backup downloaded. Public key fingerprint: {{fingerprint}}.",
+    "fields": {
+      "title": "Title",
+      "phase": "Phase",
+      "description": "Description",
+      "startTime": "Start time",
+      "startDate": "Start date",
+      "startClock": "Start hour and minute",
+      "endTime": "End time",
+      "endDate": "End date",
+      "endClock": "End hour and minute",
+      "coordinatorKeycloakId": "Coordinator Keycloak ID",
+      "vaultPassword": "Vault password",
+      "confirmVaultPassword": "Confirm vault password"
+    },
+    "placeholders": {
+      "title": "Municipal Election 2026",
+      "description": "Describe the purpose and scope of this election.",
+      "vaultPassword": "Use a long unique password for this election key backup",
+      "confirmVaultPassword": "Repeat the same password"
+    },
+    "phases": {
+      "REGISTRATION": "Registration",
+      "VOTING": "Voting",
+      "TALLY": "Tally"
+    },
+    "errors": {
+      "titleRequired": "Title is required.",
+      "endTimeRequired": "End time is required.",
+      "passwordRequired": "Vault password is required.",
+      "passwordMismatch": "Vault password confirmation does not match.",
+      "endAfterStart": "End time must be after start time.",
+      "submitFailed": "Unable to create election."
+    }
+  },
+  "detailsPage": {
+    "kicker": "Election details",
+    "back": "Back to elections",
+    "loadingTitle": "Loading election details...",
+    "loadErrorTitle": "Unable to load election details",
+    "notFoundTitle": "Election details are unavailable",
+    "descriptionFallback": "No description was provided for this election.",
+    "fallback": "Not available",
+    "errors": {
+      "missingUuid": "Election UUID is missing from the URL.",
+      "loadFailed": "Unable to load election details."
+    },
+    "status": {
+      "open": "Open",
+      "closed": "Closed",
+      "upcoming": "Upcoming"
+    },
+    "phase": {
+      "REGISTRATION": "Registration",
+      "VOTING": "Voting",
+      "TALLY": "Tally"
+    },
+    "fields": {
+      "uuid": "Election UUID",
+      "startTime": "Start time",
+      "endTime": "End time",
+      "createdAt": "Created at",
+      "updatedAt": "Last updated",
+      "contractAddress": "Contract address",
+      "externalNullifier": "External nullifier",
+      "encryptionPublicKey": "Encryption public key"
+    }
+  }
+}

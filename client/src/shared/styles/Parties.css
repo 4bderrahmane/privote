@@ -1,0 +1,225 @@
+.parties-page {
+    padding: 28px 24px 40px;
+}
+
+.parties-header {
+    max-width: 1360px;
+    margin: 0 auto 20px;
+}
+
+.parties-title {
+    margin: 0;
+    font-size: clamp(1.5rem, 1.1rem + 1vw, 2rem);
+    font-weight: 700;
+    color: var(--text);
+}
+
+.parties-subtitle {
+    margin: 8px 0 0;
+    max-width: 760px;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.parties-layout {
+    max-width: 1360px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.35fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.parties-panel {
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: #ffffff;
+    padding: 22px;
+    box-shadow: var(--shadow-sm);
+}
+
+.parties-panel-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.parties-panel-subtitle {
+    margin: 8px 0 0;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.parties-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 18px;
+}
+
+.parties-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.parties-field span {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.parties-field input,
+.parties-field textarea {
+    width: 100%;
+    border: 1px solid #cfdae8;
+    border-radius: 12px;
+    background: #ffffff;
+    color: var(--text);
+    padding: 11px 13px;
+    font-size: 0.95rem;
+}
+
+.parties-field input:focus,
+.parties-field textarea:focus {
+    outline: none;
+    border-color: #9db8d8;
+    box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.12);
+}
+
+.party-member-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.party-member-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+}
+
+.party-member-remove,
+.party-member-add {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.party-member-remove {
+    padding: 0 14px;
+}
+
+.party-member-add {
+    align-self: flex-start;
+    padding: 10px 14px;
+}
+
+.party-member-remove:hover,
+.party-member-add:hover {
+    background: #f7fafe;
+}
+
+.parties-error,
+.parties-error-block {
+    color: var(--danger-text);
+    background: var(--danger-soft);
+    border: 1px solid #f3b2b2;
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+
+.parties-error-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.parties-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.parties-submit {
+    border: none;
+    border-radius: 12px;
+    padding: 11px 18px;
+    background: var(--primary);
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.parties-submit:hover:not(:disabled) {
+    background: var(--primary-hover);
+}
+
+.parties-submit:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.parties-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.party-card {
+    border: 1px solid #dbe5f1;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+    padding: 16px;
+}
+
+.party-name {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.party-description {
+    margin: 10px 0 0;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.parties-empty {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 18px;
+    border: 1px dashed #bfd0e5;
+    border-radius: 16px;
+    background: #ffffff;
+    padding: 18px;
+    color: var(--muted);
+}
+
+@media (max-width: 980px) {
+    .parties-page {
+        padding: 22px 16px 34px;
+    }
+
+    .parties-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 720px) {
+    .parties-list {
+        grid-template-columns: 1fr;
+    }
+
+    .party-member-row {
+        grid-template-columns: 1fr;
+    }
+}

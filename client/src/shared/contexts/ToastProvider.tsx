@@ -5,10 +5,12 @@ import {ToastContext} from "./ToastContext.tsx";
 
 export const ToastProvider: React.FC<ToastProviderProps> = ({children}) => {
     const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const [toastTone, setToastTone] = useState<"success" | "error">("success");
     const [isVisible, setIsVisible] = useState(false);
 
-    const showToast = useCallback((message: string, duration: number = 3000) => {
+    const showToast = useCallback((message: string, duration: number = 3000, tone: "success" | "error" = "success") => {
         setToastMessage(message);
+        setToastTone(tone);
         setIsVisible(true);
 
         setTimeout(() => {
@@ -33,6 +35,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({children}) => {
                 <SuccessToast
                     message={toastMessage}
                     isVisible={isVisible}
+                    tone={toastTone}
                     onClose={closeToast}
                 />
             )}

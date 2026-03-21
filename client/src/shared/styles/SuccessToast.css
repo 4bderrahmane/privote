@@ -86,7 +86,6 @@
     left: 2rem; /* 32px / 16px = 2rem */
     display: flex;
     align-items: center;
-    background-color: #10b981; /* green-500 */
     color: white;
     padding: 0.75rem 1.25rem; /* py-3 px-5 */
     border-radius: 0.5rem; /* rounded-lg */
@@ -94,6 +93,16 @@
     transition: all 300ms ease-in-out;
     transform: translateX(0);
     opacity: 1;
+    z-index: 100;
+    max-width: min(520px, calc(100vw - 4rem));
+}
+
+.success-notification.toast-success {
+    background-color: #10b981;
+}
+
+.success-notification.toast-error {
+    background-color: #dc2626;
 }
 
 /* Hidden state */
@@ -119,7 +128,6 @@
 /* Close Button */
 .close-button {
     margin-left: 1rem; /* ml-4 */
-    color: #d1fae5; /* green-100 */
     transition: color 150ms;
     background: none;
     border: none;
@@ -128,6 +136,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.success-notification.toast-success .close-button {
+    color: #d1fae5;
+}
+
+.success-notification.toast-error .close-button {
+    color: #fee2e2;
 }
 
 .close-button:hover {

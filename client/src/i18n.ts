@@ -16,7 +16,7 @@ i18n
             loadPath: `/locales/{{lng}}/{{ns}}.json?v=${localeVersion}`,
         },
         load: 'languageOnly',
-        ns: ['common', 'auth', 'nav', 'settings', 'dashboard'],
+        ns: ['common', 'auth', 'nav', 'settings', 'elections', 'dashboard', 'parties'],
         defaultNS: 'common',
     });
 

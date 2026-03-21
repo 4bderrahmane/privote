@@ -22,12 +22,16 @@ export interface SuccessToastProps {
     isVisible: boolean;
     onClose: () => void;
     duration?: number;
+    tone?: ToastTone;
 }
+
+export type ToastTone = "success" | "error";
 
 export interface ToastState {
     key: number;
     message: string;
     duration: number;
+    tone: ToastTone;
 }
 export interface AuthContextType {
     user: UserResponseDTO | null;
@@ -39,7 +43,7 @@ export interface AuthContextType {
 }
 
 export interface ToastContextType {
-    showToast: (message: string, duration?: number) => void;
+    showToast: (message: string, duration?: number, tone?: ToastTone) => void;
 }
 
 export interface ToastProviderProps {

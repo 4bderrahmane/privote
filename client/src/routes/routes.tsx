@@ -19,10 +19,12 @@ import RegisterRedirect from "@/auth/components/RegisterRedirect";
 import LogoutPage from "@/auth/components/LogoutPage";
 import AdminDashboard from "../shared/components/AdminDashboard";
 import CitizenDashboard from "../shared/components/CitizenDashboard";
+import CreateElection from "../shared/components/CreateElection";
 import ChooseRole from "../shared/components/ChooseRole";
 import DashboardRedirect from "../shared/components/DashboardRedirect";
 import NotFoundPage from "../shared/components/NotFoundPage";
 import Elections from "../shared/components/Elections";
+import Parties from "../shared/components/Parties";
 import Results from "../shared/components/Results";
 import MyVotes from "../shared/components/MyVotes";
 import RoleRouteRedirect from "../shared/components/RoleRouteRedirect";
@@ -93,6 +95,8 @@ const router = createBrowserRouter([
                                             { index: true, element: <Navigate to="dashboard" replace /> },
                                             { path: "dashboard", element: <AdminDashboard /> },
                                             { path: "elections", element: <Elections /> },
+                                            { path: "elections/create", element: <CreateElection /> },
+                                            { path: "parties", element: <Parties /> },
                                             { path: "results", element: <Results /> },
                                             { path: "*", element: <NotFoundPage /> },
                                         ],

@@ -1,0 +1,37 @@
+{
+  "title": "Political parties",
+  "subtitle": "Manage the parties available for candidate affiliation and election administration.",
+  "create": {
+    "title": "Create party",
+    "subtitle": "Only administrators can create new parties.",
+    "submit": "Create party",
+    "submitting": "Creating...",
+    "success": "Party \"{{name}}\" created successfully.",
+    "addMember": "Add member",
+    "removeMember": "Remove",
+    "fields": {
+      "name": "Party name",
+      "description": "Description",
+      "memberCin": "Member CIN"
+    },
+    "placeholders": {
+      "name": "Reform Alliance",
+      "description": "Short summary of the party platform and identity.",
+      "memberCin": "Enter CIN"
+    },
+    "errors": {
+      "nameRequired": "Party name is required.",
+      "memberCinRequired": "At least one member CIN is required.",
+      "submitFailed": "Unable to create party."
+    }
+  },
+  "list": {
+    "title": "Existing parties",
+    "loading": "Loading parties...",
+    "loadFailedTitle": "Unable to load parties",
+    "loadFailed": "Unable to load parties.",
+    "emptyTitle": "No parties yet",
+    "emptySubtitle": "Create the first party to get started.",
+    "noDescription": "No description provided."
+  }
+}

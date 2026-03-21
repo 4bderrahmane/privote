@@ -1,0 +1,37 @@
+{
+  "title": "Partis politiques",
+  "subtitle": "Gérez les partis disponibles pour l'affiliation des candidats et l'administration des élections.",
+  "create": {
+    "title": "Créer un parti",
+    "subtitle": "Seuls les administrateurs peuvent créer de nouveaux partis.",
+    "submit": "Créer le parti",
+    "submitting": "Création...",
+    "success": "Le parti \"{{name}}\" a été créé avec succès.",
+    "addMember": "Ajouter un membre",
+    "removeMember": "Retirer",
+    "fields": {
+      "name": "Nom du parti",
+      "description": "Description",
+      "memberCin": "CIN du membre"
+    },
+    "placeholders": {
+      "name": "Alliance Réforme",
+      "description": "Bref résumé de la plateforme et de l'identité du parti.",
+      "memberCin": "Saisir le CIN"
+    },
+    "errors": {
+      "nameRequired": "Le nom du parti est obligatoire.",
+      "memberCinRequired": "Au moins un CIN de membre est obligatoire.",
+      "submitFailed": "Impossible de créer le parti."
+    }
+  },
+  "list": {
+    "title": "Partis existants",
+    "loading": "Chargement des partis...",
+    "loadFailedTitle": "Impossible de charger les partis",
+    "loadFailed": "Impossible de charger les partis.",
+    "emptyTitle": "Aucun parti pour le moment",
+    "emptySubtitle": "Créez le premier parti pour commencer.",
+    "noDescription": "Aucune description fournie."
+  }
+}

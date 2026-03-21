@@ -1,0 +1,127 @@
+{
+  "list": {
+    "title": "Elections disponibles",
+    "subtitle": "Parcourez les élections auxquelles vous pouvez participer et votez lorsqu'une élection est ouverte.",
+    "createButton": "Créer une élection",
+    "deployButton": "Déployer",
+    "startButton": "Démarrer",
+    "endButton": "Clore et publier la clé",
+    "endingButton": "Publication...",
+    "searchPlaceholder": "Rechercher des élections...",
+    "searchAria": "Rechercher des élections",
+    "loadingTitle": "Chargement des élections...",
+    "loadErrorTitle": "Impossible de charger les élections",
+    "emptyTitle": "Aucune élection trouvée",
+    "emptySubtitle": "Essayez un autre terme de recherche.",
+    "details": "Détails",
+    "vote": "Voter",
+    "voted": "Déjà voté",
+    "status": {
+      "open": "Ouverte",
+      "closed": "Fermée",
+      "upcoming": "À venir"
+    },
+    "stats": {
+      "candidates": "Candidats",
+      "eligibleVoters": "Électeurs éligibles"
+    },
+    "messages": {
+      "notOpen": "Cette élection n'est pas encore ouverte.",
+      "alreadyVoted": "Vous avez déjà voté dans cette élection.",
+      "votingStarted": "Vote lancé pour : {{title}}",
+      "openingDetails": "Ouverture des détails : {{title}}",
+      "loadFailed": "Impossible de charger les élections.",
+      "deployed": "Election déployée : {{title}}",
+      "started": "Election démarrée : {{title}}",
+      "ended": "Clé de déchiffrement publiée pour : {{title}}",
+      "vaultMissing": "Aucun coffre-fort chiffré local n'a été trouvé pour cette élection. Collez le JSON de sauvegarde pour continuer.",
+      "keyMismatch": "La sauvegarde chiffrée choisie ne correspond pas à la clé publique de cette élection.",
+      "passwordRequired": "Le mot de passe du coffre-fort est obligatoire.",
+      "backupInvalid": "Le JSON de sauvegarde de la clé d'élection est invalide.",
+      "actionFailed": "Impossible d'exécuter cette action du cycle de vie."
+    },
+    "dialog": {
+      "title": "Publier la clé de déchiffrement de l'élection",
+      "subtitle": "Déverrouillez localement la clé privée chiffrée, puis publiez-la on-chain pour que chacun puisse déchiffrer les bulletins après le vote.",
+      "password": "Mot de passe du coffre-fort",
+      "backupJson": "JSON de sauvegarde chiffré",
+      "backupPlaceholder": "Collez le JSON téléchargé uniquement si ce navigateur ne possède pas déjà le coffre-fort.",
+      "cancel": "Annuler",
+      "confirm": "Publier la clé de déchiffrement"
+    }
+  },
+  "create": {
+    "title": "Créer une élection",
+    "subtitle": "Une nouvelle paire de clés de chiffrement est générée dans votre navigateur. Seule la clé publique est envoyée au backend.",
+    "back": "Retour aux élections",
+    "submit": "Créer l'élection",
+    "submitting": "Création...",
+    "success": "L'élection \"{{title}}\" a été créée. La sauvegarde chiffrée a été téléchargée. Empreinte de la clé publique : {{fingerprint}}.",
+    "fields": {
+      "title": "Titre",
+      "phase": "Phase",
+      "description": "Description",
+      "startTime": "Heure de début",
+      "startDate": "Date de début",
+      "startClock": "Heure et minute de début",
+      "endTime": "Heure de fin",
+      "endDate": "Date de fin",
+      "endClock": "Heure et minute de fin",
+      "coordinatorKeycloakId": "ID Keycloak du coordinateur",
+      "vaultPassword": "Mot de passe du coffre-fort",
+      "confirmVaultPassword": "Confirmer le mot de passe"
+    },
+    "placeholders": {
+      "title": "Election municipale 2026",
+      "description": "Décrivez l'objectif et le périmètre de cette élection.",
+      "vaultPassword": "Utilisez un mot de passe long et unique pour cette sauvegarde de clé",
+      "confirmVaultPassword": "Répétez le même mot de passe"
+    },
+    "phases": {
+      "REGISTRATION": "Inscription",
+      "VOTING": "Vote",
+      "TALLY": "Dépouillement"
+    },
+    "errors": {
+      "titleRequired": "Le titre est obligatoire.",
+      "endTimeRequired": "L'heure de fin est obligatoire.",
+      "passwordRequired": "Le mot de passe du coffre-fort est obligatoire.",
+      "passwordMismatch": "La confirmation du mot de passe ne correspond pas.",
+      "endAfterStart": "L'heure de fin doit être postérieure à l'heure de début.",
+      "submitFailed": "Impossible de créer l'élection."
+    }
+  },
+  "detailsPage": {
+    "kicker": "Détails de l'élection",
+    "back": "Retour aux élections",
+    "loadingTitle": "Chargement des détails de l'élection...",
+    "loadErrorTitle": "Impossible de charger les détails de l'élection",
+    "notFoundTitle": "Les détails de l'élection sont indisponibles",
+    "descriptionFallback": "Aucune description n'a été fournie pour cette élection.",
+    "fallback": "Non disponible",
+    "errors": {
+      "missingUuid": "L'UUID de l'élection est absent de l'URL.",
+      "loadFailed": "Impossible de charger les détails de l'élection."
+    },
+    "status": {
+      "open": "Ouverte",
+      "closed": "Fermée",
+      "upcoming": "À venir"
+    },
+    "phase": {
+      "REGISTRATION": "Inscription",
+      "VOTING": "Vote",
+      "TALLY": "Dépouillement"
+    },
+    "fields": {
+      "uuid": "UUID de l'élection",
+      "startTime": "Heure de début",
+      "endTime": "Heure de fin",
+      "createdAt": "Créée le",
+      "updatedAt": "Dernière mise à jour",
+      "contractAddress": "Adresse du contrat",
+      "externalNullifier": "Nullifier externe",
+      "encryptionPublicKey": "Clé publique de chiffrement"
+    }
+  }
+}

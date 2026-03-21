@@ -1,35 +1,52 @@
 import React from 'react';
 import '../styles/SuccessToast.css';
+import type {ToastTone} from "../types/types.ts";
 
 interface SuccessToastProps {
     message: string | null;
     isVisible: boolean;
     onClose: () => void;
     duration?: number;
+    tone?: ToastTone;
 }
 
-const SuccessToast: React.FC<SuccessToastProps> = ({message, isVisible, onClose}) => {
+const SuccessToast: React.FC<SuccessToastProps> = ({message, isVisible, onClose, tone = "success"}) => {
     if (!message) return null;
 
     return (
-        <div className={`success-notification ${isVisible ? 'visible' : 'hidden'}`}>
-            {/* Success Icon SVG */}
-            <svg
-                className="success-icon"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-            >
-                <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                ></path>
-            </svg>
+        <div className={`success-notification toast-${tone} ${isVisible ? 'visible' : 'hidden'}`}>
+            {tone === "error" ? (
+                <svg
+                    className="success-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M12 8v4m0 4h.01M22 12a10 10 0 11-20 0 10 10 0 0120 0z"
+                    ></path>
+                </svg>
+            ) : (
+                <svg
+                    className="success-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    ></path>
+                </svg>
+            )}
             <span>{message}</span>
-            {/* Close Button */}
             <button onClick={onClose} className="close-button">
                 <svg xmlns="http://www.w3.org/2000/svg" className="close-icon" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd"
