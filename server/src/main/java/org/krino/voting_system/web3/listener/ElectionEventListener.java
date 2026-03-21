@@ -8,6 +8,7 @@ import org.krino.voting_system.web3.listener.cursor.Cursor;
 import org.krino.voting_system.web3.listener.cursor.CursorStore;
 import org.krino.voting_system.web3.listener.events.ElectionDeployedEvent;
 import org.krino.voting_system.web3.util.Web3Types;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.web3j.abi.EventEncoder;
@@ -29,6 +30,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "web3j.listener", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class ElectionEventListener
 {
 

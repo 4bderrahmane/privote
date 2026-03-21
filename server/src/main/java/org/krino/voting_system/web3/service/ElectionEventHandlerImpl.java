@@ -3,9 +3,18 @@ package org.krino.voting_system.web3.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.krino.voting_system.entity.Election;
+import org.krino.voting_system.entity.VoterCommitment;
+import org.krino.voting_system.entity.enums.CommitmentStatus;
+import org.krino.voting_system.entity.enums.ElectionPhase;
+import org.krino.voting_system.entity.enums.ParticipationStatus;
+import org.krino.voting_system.repository.CitizenElectionParticipationRepository;
 import org.krino.voting_system.repository.ElectionRepository;
 import org.krino.voting_system.web3.listener.events.ElectionDeployedEvent;
+import org.krino.voting_system.web3.listener.events.ElectionEndedEvent;
 import org.krino.voting_system.web3.listener.ElectionEventHandler;
+import org.krino.voting_system.web3.listener.events.ElectionStartedEvent;
+import org.krino.voting_system.web3.listener.events.MemberAddedEvent;
+import org.krino.voting_system.repository.VoterCommitmentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +29,8 @@ public class ElectionEventHandlerImpl implements ElectionEventHandler
 {
 
     private final ElectionRepository electionRepository;
+    private final VoterCommitmentRepository voterCommitmentRepository;
+    private final CitizenElectionParticipationRepository participationRepository;
 
     @Override
     @Transactional
@@ -111,6 +122,154 @@ public class ElectionEventHandlerImpl implements ElectionEventHandler
                 election.getPublicId(), contract, event.blockNumber(), event.logIndex(), event.txHash());
     }
 
+    @Override
+    @Transactional
+    public void onMemberAdded(MemberAddedEvent event)
+    {
+        final String contract = normalizeAddress(event.electionAddress());
+        if (contract == null)
+        {
+            log.warn("MemberAdded ignored: invalid contract address. addr={}, tx={}", event.electionAddress(), event.txHash());
+            return;
+        }
+
+        Election election = electionRepository.findByContractAddressIgnoreCase(contract).orElse(null);
+        if (election == null)
+        {
+            log.warn("MemberAdded for unknown contract={}. tx={}", contract, event.txHash());
+            return;
+        }
+
+        if (event.groupId() == null || !event.groupId().equals(election.getExternalNullifier()))
+        {
+            log.warn("MemberAdded groupId mismatch for contract={}. dbGroupId={}, eventGroupId={}, tx={}",
+                    contract, election.getExternalNullifier(), event.groupId(), event.txHash());
+            return;
+        }
+
+        String identityCommitment = event.identityCommitment() == null ? null : event.identityCommitment().toString();
+        if (identityCommitment == null)
+        {
+            log.warn("MemberAdded without identityCommitment for contract={}. tx={}", contract, event.txHash());
+            return;
+        }
+
+        VoterCommitment commitment = voterCommitmentRepository
+                .findByElectionPublicIdAndIdentityCommitment(election.getPublicId(), identityCommitment)
+                .orElse(null);
+        if (commitment == null)
+        {
+            log.warn("MemberAdded for unknown identityCommitment. electionUuid={}, contract={}, commitment={}, tx={}",
+                    election.getPublicId(), contract, identityCommitment, event.txHash());
+            return;
+        }
+
+        commitment.setStatus(CommitmentStatus.ON_CHAIN);
+        commitment.setMerkleLeafIndex(toLongOrNull(event.index()));
+        if (event.txHash() != null && !event.txHash().isBlank())
+        {
+            commitment.setTransactionHash(event.txHash());
+        }
+
+        participationRepository.findByCitizenKeycloakIdAndElectionPublicId(
+                        commitment.getCitizen().getKeycloakId(),
+                        election.getPublicId()
+                )
+                .ifPresentOrElse(
+                        participation ->
+                        {
+                            if (participation.getStatus() != ParticipationStatus.CAST)
+                            {
+                                participation.setStatus(ParticipationStatus.REGISTERED);
+                            }
+                        },
+                        () ->
+                        {
+                            var participation = new org.krino.voting_system.entity.CitizenElectionParticipation();
+                            participation.setCitizen(commitment.getCitizen());
+                            participation.setElection(election);
+                            participation.setStatus(ParticipationStatus.REGISTERED);
+                            participationRepository.save(participation);
+                        }
+                );
+
+        log.info("Reconciled voter commitment electionUuid={} citizenUuid={} commitment={} leafIndex={} tx={}",
+                election.getPublicId(),
+                commitment.getCitizen().getKeycloakId(),
+                identityCommitment,
+                commitment.getMerkleLeafIndex(),
+                event.txHash());
+    }
+
+    @Override
+    @Transactional
+    public void onElectionStarted(ElectionStartedEvent event)
+    {
+        final String contract = normalizeAddress(event.electionAddress());
+        if (contract == null)
+        {
+            log.warn("ElectionStarted ignored: invalid contract address. addr={}, tx={}", event.electionAddress(), event.txHash());
+            return;
+        }
+
+        Election election = electionRepository.findByContractAddressIgnoreCase(contract).orElse(null);
+        if (election == null)
+        {
+            log.warn("ElectionStarted for unknown contract={}. tx={}", contract, event.txHash());
+            return;
+        }
+
+        Instant chainStart = toInstantSeconds(event.startTimeSeconds());
+        Instant chainEnd = toInstantSeconds(event.endTimeSeconds());
+
+        if (chainStart != null)
+        {
+            election.setStartTime(chainStart);
+        }
+        if (chainEnd != null)
+        {
+            election.setEndTime(chainEnd);
+        }
+
+        if (election.getPhase() != ElectionPhase.VOTING)
+        {
+            election.setPhase(ElectionPhase.VOTING);
+            log.info("Marked election uuid={} as VOTING from contract={} at block={} logIndex={} tx={}",
+                    election.getPublicId(), contract, event.blockNumber(), event.logIndex(), event.txHash());
+        }
+    }
+
+    @Override
+    @Transactional
+    public void onElectionEnded(ElectionEndedEvent event)
+    {
+        final String contract = normalizeAddress(event.electionAddress());
+        if (contract == null)
+        {
+            log.warn("ElectionEnded ignored: invalid contract address. addr={}, tx={}", event.electionAddress(), event.txHash());
+            return;
+        }
+
+        Election election = electionRepository.findByContractAddressIgnoreCase(contract).orElse(null);
+        if (election == null)
+        {
+            log.warn("ElectionEnded for unknown contract={}. tx={}", contract, event.txHash());
+            return;
+        }
+
+        if (event.decryptionMaterial() != null && event.decryptionMaterial().length > 0)
+        {
+            election.setDecryptionMaterial(event.decryptionMaterial());
+        }
+
+        if (election.getPhase() != ElectionPhase.TALLY)
+        {
+            election.setPhase(ElectionPhase.TALLY);
+            log.info("Marked election uuid={} as TALLY from contract={} at block={} logIndex={} tx={}",
+                    election.getPublicId(), contract, event.blockNumber(), event.logIndex(), event.txHash());
+        }
+    }
+
     private static Instant toInstantSeconds(BigInteger epochSeconds)
     {
         if (epochSeconds == null) return null;
@@ -130,5 +289,22 @@ public class ElectionEventHandlerImpl implements ElectionEventHandler
         if (!a.startsWith("0x")) a = "0x" + a;
         if (a.length() != 42) return null;
         return a.toLowerCase();
+    }
+
+    private static Long toLongOrNull(BigInteger value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return value.longValueExact();
+        }
+        catch (ArithmeticException ex)
+        {
+            return null;
+        }
     }
 }

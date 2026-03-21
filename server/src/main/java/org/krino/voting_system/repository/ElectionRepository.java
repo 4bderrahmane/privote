@@ -16,5 +16,7 @@ public interface ElectionRepository extends JpaRepository<Election, Long>
 
     Optional<Election> findByContractAddressIgnoreCase(String contractAddress);
 
+    List<Election> findByContractAddressIsNotNull();
+
     @NonNull List<Election> findAll();
 }

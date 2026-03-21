@@ -55,7 +55,7 @@ web3j:
   chain-id: 31337 #5777 for ganache
   client-address: http://127.0.0.1:8545
   private-key: ${RELAYER_PRIVATE_KEY}
-  election-factory-address: ${ELECTION_FACTORY_ADDRESS}
+  election-factory-address: ${ELECTION_FACTORY_ADDRESS:}
   confirmations: 2
   start-block: 0
   listener:

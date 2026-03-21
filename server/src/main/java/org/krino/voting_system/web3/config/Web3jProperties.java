@@ -23,6 +23,7 @@ public class Web3jProperties
     @Setter
     public static class Listener
     {
+        private boolean enabled = true;
         private long pollIntervalMs = 5000;
     }
 }

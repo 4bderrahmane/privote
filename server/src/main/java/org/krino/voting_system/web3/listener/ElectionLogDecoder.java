@@ -3,6 +3,7 @@ package org.krino.voting_system.web3.listener;
 import org.krino.voting_system.web3.contracts.Election;
 import org.krino.voting_system.web3.listener.events.ElectionEndedEvent;
 import org.krino.voting_system.web3.listener.events.ElectionStartedEvent;
+import org.krino.voting_system.web3.listener.events.MemberAddedEvent;
 import org.krino.voting_system.web3.listener.events.VoteAddedEvent;
 import org.web3j.abi.EventEncoder;
 import org.web3j.protocol.core.methods.response.Log;
@@ -13,6 +14,7 @@ import java.util.Objects;
 public final class ElectionLogDecoder
 {
     public static final String ELECTION_STARTED_TOPIC0 = EventEncoder.encode(Election.ELECTIONSTARTED_EVENT);
+    public static final String MEMBER_ADDED_TOPIC0 = EventEncoder.encode(Election.MEMBERADDED_EVENT);
     public static final String VOTE_ADDED_TOPIC0 = EventEncoder.encode(Election.VOTEADDED_EVENT);
     public static final String ELECTION_ENDED_TOPIC0 = EventEncoder.encode(Election.ELECTIONENDED_EVENT);
 
@@ -52,6 +54,26 @@ public final class ElectionLogDecoder
                 event.ciphertextHash,
                 event.nullifier,
                 event.ciphertext,
+                log.getTransactionHash(),
+                log.getBlockNumber(),
+                safeLogIndex(log)
+        );
+    }
+
+    public static MemberAddedEvent decodeMemberAdded(Log log)
+    {
+        if (!hasTopic0(log, MEMBER_ADDED_TOPIC0))
+        {
+            return null;
+        }
+
+        Election.MemberAddedEventResponse event = Election.getMemberAddedEventFromLog(log);
+        return new MemberAddedEvent(
+                normalizeAddress(log.getAddress()),
+                event.groupId,
+                event.index,
+                event.identityCommitment,
+                event.merkleTreeRoot,
                 log.getTransactionHash(),
                 log.getBlockNumber(),
                 safeLogIndex(log)
