@@ -4,7 +4,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.krino.voting_system.entity.Citizen;
 import org.krino.voting_system.entity.Election;
+import org.krino.voting_system.entity.enums.CandidateStatus;
 import org.krino.voting_system.entity.enums.ElectionPhase;
+import org.krino.voting_system.repository.CandidateRepository;
 import org.krino.voting_system.repository.ElectionRepository;
 import org.krino.voting_system.web3.client.ElectionClient;
 import org.krino.voting_system.web3.client.ElectionFactoryClient;
@@ -23,12 +25,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class ElectionLifecycleServiceTest
 {
     private final Map<UUID, Election> elections = new HashMap<>();
+    private final Map<UUID, Boolean> activeCandidates = new HashMap<>();
     private ElectionLifecycleService electionLifecycleService;
 
     @BeforeEach
     void setUp()
     {
         elections.clear();
+        activeCandidates.clear();
     }
 
     @Test
@@ -41,8 +45,15 @@ class ElectionLifecycleServiceTest
 
         electionLifecycleService = new ElectionLifecycleService(
                 repositoryStub(),
+                candidateRepositoryStub(),
                 new ElectionFactoryClient(null, null, null, null)
                 {
+                    @Override
+                    public String getElectionAddress(UUID electionPublicId)
+                    {
+                        return "0x0000000000000000000000000000000000000000";
+                    }
+
                     @Override
                     public String createElection(UUID electionPublicId, java.math.BigInteger endTimeSeconds, byte[] encryptionPubKey32)
                     {
@@ -61,15 +72,77 @@ class ElectionLifecycleServiceTest
     }
 
     @Test
+    void deployElectionRecoversExistingOnChainDeploymentAndClearsStaleLocalCollision()
+    {
+        UUID currentPublicId = UUID.randomUUID();
+        UUID stalePublicId = UUID.randomUUID();
+        String recoveredAddress = "0x75537828f2ce51be7289709686a69cbfdbb714f1";
+
+        Election currentElection = election(currentPublicId, ElectionPhase.REGISTRATION, Instant.now().plusSeconds(3600));
+        currentElection.setEncryptionPublicKey(new byte[32]);
+        elections.put(currentPublicId, currentElection);
+
+        Election staleElection = election(stalePublicId, ElectionPhase.VOTING, Instant.now().plusSeconds(7200));
+        staleElection.setContractAddress(recoveredAddress);
+        staleElection.setStartTime(Instant.now().minusSeconds(600));
+        staleElection.setDecryptionMaterial(new byte[]{1, 2, 3});
+        elections.put(stalePublicId, staleElection);
+
+        electionLifecycleService = new ElectionLifecycleService(
+                repositoryStub(),
+                candidateRepositoryStub(),
+                new ElectionFactoryClient(null, null, null, null)
+                {
+                    @Override
+                    public String getElectionAddress(UUID electionPublicId)
+                    {
+                        if (currentPublicId.equals(electionPublicId))
+                        {
+                            return recoveredAddress;
+                        }
+                        if (stalePublicId.equals(electionPublicId))
+                        {
+                            return "0x0000000000000000000000000000000000000000";
+                        }
+                        return "0x0000000000000000000000000000000000000000";
+                    }
+
+                    @Override
+                    public boolean isLocalHardhatEnvironment()
+                    {
+                        return true;
+                    }
+
+                    @Override
+                    public String createElection(UUID electionPublicId, java.math.BigInteger endTimeSeconds, byte[] encryptionPubKey32)
+                    {
+                        throw new AssertionError("createElection should not be called when an orphaned on-chain deployment exists");
+                    }
+                },
+                new ElectionClient(null, null, null)
+        );
+
+        Election deployed = electionLifecycleService.deployElection(currentPublicId);
+
+        assertEquals(recoveredAddress, deployed.getContractAddress());
+        assertEquals(ElectionPhase.REGISTRATION, staleElection.getPhase());
+        assertEquals(null, staleElection.getContractAddress());
+        assertEquals(null, staleElection.getStartTime());
+        assertEquals(null, staleElection.getDecryptionMaterial());
+    }
+
+    @Test
     void startElectionMovesPhaseToVoting()
     {
         UUID publicId = UUID.randomUUID();
         Election election = election(publicId, ElectionPhase.REGISTRATION, Instant.now().plusSeconds(3600));
         election.setContractAddress("0xabc0000000000000000000000000000000000000");
         elections.put(publicId, election);
+        activeCandidates.put(publicId, true);
 
         electionLifecycleService = new ElectionLifecycleService(
                 repositoryStub(),
+                candidateRepositoryStub(),
                 new ElectionFactoryClient(null, null, null, null),
                 new ElectionClient(null, null, null)
                 {
@@ -89,6 +162,29 @@ class ElectionLifecycleServiceTest
     }
 
     @Test
+    void startElectionRequiresAtLeastOneActiveCandidate()
+    {
+        UUID publicId = UUID.randomUUID();
+        Election election = election(publicId, ElectionPhase.REGISTRATION, Instant.now().plusSeconds(3600));
+        election.setContractAddress("0xabc0000000000000000000000000000000000000");
+        elections.put(publicId, election);
+
+        electionLifecycleService = new ElectionLifecycleService(
+                repositoryStub(),
+                candidateRepositoryStub(),
+                new ElectionFactoryClient(null, null, null, null),
+                new ElectionClient(null, null, null)
+        );
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> electionLifecycleService.startElection(publicId)
+        );
+
+        assertEquals("Election must have at least one ACTIVE candidate before voting can start", ex.getMessage());
+    }
+
+    @Test
     void endElectionRequiresDecryptionMaterial()
     {
         UUID publicId = UUID.randomUUID();
@@ -98,6 +194,7 @@ class ElectionLifecycleServiceTest
 
         electionLifecycleService = new ElectionLifecycleService(
                 repositoryStub(),
+                candidateRepositoryStub(),
                 new ElectionFactoryClient(null, null, null, null),
                 new ElectionClient(null, null, null)
         );
@@ -118,7 +215,11 @@ class ElectionLifecycleServiceTest
                 (proxy, method, args) -> switch (method.getName())
                 {
                     case "findByPublicId" -> Optional.ofNullable(elections.get((UUID) args[0]));
-                    case "save" ->
+                    case "findByContractAddressIgnoreCase" -> elections.values().stream()
+                            .filter(election -> election.getContractAddress() != null)
+                            .filter(election -> election.getContractAddress().equalsIgnoreCase((String) args[0]))
+                            .findFirst();
+                    case "save", "saveAndFlush" ->
                     {
                         Election election = (Election) args[0];
                         elections.put(election.getPublicId(), election);
@@ -127,6 +228,23 @@ class ElectionLifecycleServiceTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "ElectionRepositoryStub";
+                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                }
+        );
+    }
+
+    private CandidateRepository candidateRepositoryStub()
+    {
+        return (CandidateRepository) Proxy.newProxyInstance(
+                CandidateRepository.class.getClassLoader(),
+                new Class[]{CandidateRepository.class},
+                (proxy, method, args) -> switch (method.getName())
+                {
+                    case "existsByElectionPublicIdAndStatus" ->
+                            args[1] == CandidateStatus.ACTIVE && activeCandidates.getOrDefault((UUID) args[0], false);
+                    case "equals" -> proxy == args[0];
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "toString" -> "CandidateRepositoryStub";
                     default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );

@@ -139,21 +139,26 @@ public class ElectionFactoryClient
         throw new IllegalStateException("ElectionFactory address is not configured and no local Hardhat fallback contract was found");
     }
 
-    private String localHardhatFallbackAddress()
+    public boolean isLocalHardhatEnvironment()
     {
         if (props.getChainId() != LOCAL_HARDHAT_CHAIN_ID)
         {
-            return null;
+            return false;
         }
 
         String clientAddress = props.getClientAddress();
         if (clientAddress == null)
         {
-            return null;
+            return false;
         }
 
         String normalized = clientAddress.trim().toLowerCase();
-        if (!normalized.equals("http://127.0.0.1:8545") && !normalized.equals("http://localhost:8545"))
+        return normalized.equals("http://127.0.0.1:8545") || normalized.equals("http://localhost:8545");
+    }
+
+    private String localHardhatFallbackAddress()
+    {
+        if (!isLocalHardhatEnvironment())
         {
             return null;
         }

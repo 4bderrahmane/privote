@@ -55,6 +55,7 @@ public class ElectionService
     {
         validateElectionCreateDto(electionDto);
         validateTimeRange(electionDto.getStartTime(), electionDto.getEndTime());
+        validateCreatablePhase(electionDto.getPhase());
 
         Election election = electionMapper.toEntity(electionDto);
         if (election.getPublicId() == null)
@@ -85,6 +86,7 @@ public class ElectionService
 
         Election election = getRequiredElectionByPublicId(publicId);
         boolean deployed = election.getContractAddress() != null && !election.getContractAddress().isBlank();
+        validatePhaseTransitionRequest(election.getPhase(), patchDto.getPhase());
 
         if (patchDto.getTitle() != null)
         {
@@ -124,6 +126,7 @@ public class ElectionService
 
         Election election = getRequiredElectionByPublicId(publicId);
         validateTimeRange(electionDto.getStartTime(), electionDto.getEndTime());
+        validatePhaseTransitionRequest(election.getPhase(), electionDto.getPhase());
 
         boolean deployed = election.getContractAddress() != null && !election.getContractAddress().isBlank();
         if (deployed)
@@ -232,6 +235,24 @@ public class ElectionService
         {
             throw new IllegalArgumentException("endTime must be after startTime");
         }
+    }
+
+    private static void validateCreatablePhase(ElectionPhase phase)
+    {
+        if (phase != null && phase != ElectionPhase.REGISTRATION)
+        {
+            throw new IllegalArgumentException("New elections must start in REGISTRATION");
+        }
+    }
+
+    private static void validatePhaseTransitionRequest(ElectionPhase currentPhase, ElectionPhase requestedPhase)
+    {
+        if (requestedPhase == null || requestedPhase == currentPhase)
+        {
+            return;
+        }
+
+        throw new IllegalArgumentException("Election phase transitions must use the lifecycle actions");
     }
 
     private Citizen resolveCoordinator(UUID coordinatorKeycloakId)

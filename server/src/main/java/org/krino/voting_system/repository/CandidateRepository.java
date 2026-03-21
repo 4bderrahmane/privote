@@ -1,6 +1,7 @@
 package org.krino.voting_system.repository;
 
 import org.krino.voting_system.entity.Candidate;
+import org.krino.voting_system.entity.enums.CandidateStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,6 +15,10 @@ public interface CandidateRepository extends JpaRepository<Candidate, Long>
     Optional<Candidate> findByPublicId(UUID publicId);
 
     List<Candidate> findByElectionPublicId(UUID electionPublicId);
+
+    List<Candidate> findByElectionPublicIdAndStatus(UUID electionPublicId, CandidateStatus status);
+
+    boolean existsByElectionPublicIdAndStatus(UUID electionPublicId, CandidateStatus status);
 
     boolean existsByElectionPublicIdAndCitizenKeycloakId(UUID electionPublicId, UUID citizenPublicId);
 

@@ -3,7 +3,9 @@ package org.krino.voting_system.service;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.krino.voting_system.entity.Election;
+import org.krino.voting_system.entity.enums.CandidateStatus;
 import org.krino.voting_system.entity.enums.ElectionPhase;
+import org.krino.voting_system.repository.CandidateRepository;
 import org.krino.voting_system.repository.ElectionRepository;
 import org.krino.voting_system.web3.client.ElectionClient;
 import org.krino.voting_system.web3.client.ElectionFactoryClient;
@@ -18,6 +20,7 @@ import java.util.UUID;
 public class ElectionLifecycleService
 {
     private final ElectionRepository electionRepository;
+    private final CandidateRepository candidateRepository;
     private final ElectionFactoryClient electionFactoryClient;
     private final ElectionClient electionClient;
 
@@ -45,18 +48,27 @@ public class ElectionLifecycleService
 
         try
         {
+            String existingOnChainAddress = electionFactoryClient.getElectionAddress(election.getPublicId());
+            if (!isZeroAddress(existingOnChainAddress))
+            {
+                reconcileContractAddressAssignment(election, existingOnChainAddress);
+                election.setContractAddress(existingOnChainAddress);
+                return electionRepository.saveAndFlush(election);
+            }
+
             String contractAddress = electionFactoryClient.createElection(
                     election.getPublicId(),
                     java.math.BigInteger.valueOf(election.getEndTime().getEpochSecond()),
                     election.getEncryptionPublicKey()
             );
 
+            reconcileContractAddressAssignment(election, contractAddress);
             election.setContractAddress(contractAddress);
-            return electionRepository.save(election);
+            return electionRepository.saveAndFlush(election);
         }
         catch (Exception ex)
         {
-            throw new IllegalStateException("Failed to deploy election contract", ex);
+            throw new IllegalStateException("Failed to deploy election contract: " + rootCauseMessage(ex), ex);
         }
     }
 
@@ -79,6 +91,8 @@ public class ElectionLifecycleService
         {
             throw new IllegalStateException("Election voting window has already elapsed");
         }
+
+        requireActiveCandidates(election);
 
         try
         {
@@ -162,5 +176,76 @@ public class ElectionLifecycleService
             throw new IllegalStateException("Election externalNullifier does not match the canonical UUID-derived value");
         }
         election.setExternalNullifier(canonical);
+    }
+
+    private void requireActiveCandidates(Election election)
+    {
+        if (!candidateRepository.existsByElectionPublicIdAndStatus(election.getPublicId(), CandidateStatus.ACTIVE))
+        {
+            throw new IllegalStateException("Election must have at least one ACTIVE candidate before voting can start");
+        }
+    }
+
+    private void reconcileContractAddressAssignment(Election election, String contractAddress) throws Exception
+    {
+        Election conflictingElection = electionRepository.findByContractAddressIgnoreCase(contractAddress)
+                .filter(existing -> !existing.getPublicId().equals(election.getPublicId()))
+                .orElse(null);
+
+        if (conflictingElection == null)
+        {
+            return;
+        }
+
+        if (canRecoverStaleLocalDeployment(conflictingElection, contractAddress))
+        {
+            clearStaleLocalDeployment(conflictingElection);
+            electionRepository.saveAndFlush(conflictingElection);
+            return;
+        }
+
+        throw new IllegalStateException(
+                "Contract address " + contractAddress + " is already assigned to election " + conflictingElection.getPublicId()
+        );
+    }
+
+    private boolean canRecoverStaleLocalDeployment(Election conflictingElection, String contractAddress) throws Exception
+    {
+        if (!electionFactoryClient.isLocalHardhatEnvironment())
+        {
+            return false;
+        }
+
+        String onChainAddress = electionFactoryClient.getElectionAddress(conflictingElection.getPublicId());
+        return isZeroAddress(onChainAddress) || !contractAddress.equalsIgnoreCase(onChainAddress);
+    }
+
+    private void clearStaleLocalDeployment(Election election)
+    {
+        election.setContractAddress(null);
+        election.setStartTime(null);
+        election.setDecryptionMaterial(null);
+        election.setPhase(ElectionPhase.REGISTRATION);
+    }
+
+    private static String rootCauseMessage(Exception ex)
+    {
+        Throwable current = ex;
+        while (current.getCause() != null)
+        {
+            current = current.getCause();
+        }
+
+        String message = current.getMessage();
+        if (message == null || message.isBlank())
+        {
+            return current.getClass().getSimpleName();
+        }
+        return message;
+    }
+
+    private static boolean isZeroAddress(String address)
+    {
+        return address == null || "0x0000000000000000000000000000000000000000".equalsIgnoreCase(address);
     }
 }
