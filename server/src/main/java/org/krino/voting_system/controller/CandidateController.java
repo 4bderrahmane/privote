@@ -20,7 +20,7 @@ public class CandidateController
     private final CandidateService candidateService;
 
     @PostMapping("/create")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Candidate> createCandidate(@RequestBody CandidateCreateDto candidate)
     {
         Candidate createdCandidate = candidateService.createCandidate(candidate);
@@ -28,7 +28,7 @@ public class CandidateController
     }
 
     @PutMapping("/{uuid}")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Candidate> updateCandidate(@PathVariable UUID uuid, @RequestBody CandidateCreateDto candidate)
     {
         Candidate updatedCandidate = candidateService.updateCandidate(uuid, candidate);
@@ -36,7 +36,7 @@ public class CandidateController
     }
 
     @PatchMapping("/{uuid}")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Candidate> patchCandidate(@PathVariable UUID uuid, @RequestBody CandidatePatchDto candidate)
     {
         Candidate patchedCandidate = candidateService.patchCandidate(uuid, candidate);
@@ -58,7 +58,7 @@ public class CandidateController
     }
 
     @DeleteMapping("/{uuid}")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteCandidateByUUID(@PathVariable UUID uuid)
     {
         candidateService.deleteCandidateByPublicId(uuid);

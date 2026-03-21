@@ -42,6 +42,7 @@ public class KeycloakRoleConverter implements Converter<Jwt, AbstractAuthenticat
         return roles.stream()
                 .filter(String.class::isInstance)
                 .map(String.class::cast)
+                .map(this::normalizeRole)
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
                 .collect(Collectors.toUnmodifiableSet());
     }
@@ -62,8 +63,19 @@ public class KeycloakRoleConverter implements Converter<Jwt, AbstractAuthenticat
         return roles.stream()
                 .filter(String.class::isInstance)
                 .map(String.class::cast)
+                .map(this::normalizeRole)
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
                 .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private String normalizeRole(String role)
+    {
+        if ("admin".equalsIgnoreCase(role))
+        {
+            return "ADMIN";
+        }
+
+        return role;
     }
 
 }

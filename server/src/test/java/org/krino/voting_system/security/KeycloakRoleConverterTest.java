@@ -31,7 +31,7 @@ class KeycloakRoleConverterTest
 
         assertEquals("4bderrahmane", authentication.getName());
         assertEquals(
-                Set.of("ROLE_admin", "ROLE_election-manager"),
+                Set.of("ROLE_ADMIN", "ROLE_election-manager"),
                 authorityNames(authentication)
         );
     }
@@ -66,7 +66,7 @@ class KeycloakRoleConverterTest
 
         JwtAuthenticationToken authentication = (JwtAuthenticationToken) converter.convert(jwt);
 
-        assertEquals(Set.of("ROLE_admin"), authorityNames(authentication));
+        assertEquals(Set.of("ROLE_ADMIN"), authorityNames(authentication));
     }
 
     private static Jwt jwtWithClaims(Map<String, Object> claims)

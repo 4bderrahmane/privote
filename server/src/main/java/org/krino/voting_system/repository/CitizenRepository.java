@@ -13,6 +13,7 @@ public interface CitizenRepository extends JpaRepository<Citizen, Long>
     Optional<Citizen> findByKeycloakIdAndIsDeletedFalse(UUID uuid);
 
     Optional<Citizen> findByCin(String cin);
+    Optional<Citizen> findByCinAndIsDeletedFalse(String cin);
 
     boolean existsByCinAndKeycloakIdNot(String cin, UUID keycloakId);
 

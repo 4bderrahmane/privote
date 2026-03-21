@@ -441,6 +441,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
 
     private void logClientException(Exception ex)
     {
+        Throwable cause = ex.getCause();
+        if (cause != null && cause.getMessage() != null && !cause.getMessage().isBlank())
+        {
+            LOG.warn("Request failed: {} | cause: {}", ex.getMessage(), cause.getMessage());
+            return;
+        }
+
         LOG.warn("Request failed: {}", ex.getMessage());
     }
 

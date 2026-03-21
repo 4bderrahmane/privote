@@ -6,11 +6,15 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.krino.voting_system.dto.party.PartyCreateDto;
 import org.krino.voting_system.dto.party.PartyPatchDto;
+import org.krino.voting_system.entity.Citizen;
 import org.krino.voting_system.entity.Party;
 import org.krino.voting_system.exception.ResourceNotFoundException;
+import org.krino.voting_system.repository.CitizenRepository;
 import org.krino.voting_system.mapper.PartyMapper;
 import org.krino.voting_system.repository.PartyRepository;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,6 +25,7 @@ public class PartyService
 {
     private final PartyRepository partyRepository;
     private final PartyMapper partyMapper;
+    private final CitizenRepository citizenRepository;
 
     public List<Party> findAllParties()
     {
@@ -35,20 +40,22 @@ public class PartyService
 
     public Party createParty(PartyCreateDto partyDto)
     {
-        validatePartyCreateDto(partyDto);
+        validatePartyCreateDto(partyDto, true);
         ensurePartyNameAvailable(partyDto.getName(), null);
 
         Party party = partyMapper.toEntity(partyDto);
+        party.setMembers(resolveMembersByCin(partyDto.getMemberCins(), true));
         return partyRepository.save(party);
     }
 
     public Party updateParty(UUID publicId, PartyCreateDto partyDto)
     {
-        validatePartyCreateDto(partyDto);
+        validatePartyCreateDto(partyDto, true);
         ensurePartyNameAvailable(partyDto.getName(), publicId);
 
         Party party = getRequiredParty(publicId);
         partyMapper.updateEntity(partyDto, party);
+        party.setMembers(resolveMembersByCin(partyDto.getMemberCins(), true));
         return partyRepository.save(party);
     }
 
@@ -84,7 +91,7 @@ public class PartyService
                 .orElseThrow(() -> new ResourceNotFoundException(Party.class.getSimpleName(), "UUID", publicId));
     }
 
-    private void validatePartyCreateDto(PartyCreateDto partyDto)
+    private void validatePartyCreateDto(PartyCreateDto partyDto, boolean requireMembers)
     {
         if (partyDto == null)
         {
@@ -93,6 +100,11 @@ public class PartyService
         if (partyDto.getName() == null || partyDto.getName().isBlank())
         {
             throw new IllegalArgumentException("name is required");
+        }
+
+        if (requireMembers && (partyDto.getMemberCins() == null || partyDto.getMemberCins().isEmpty()))
+        {
+            throw new IllegalArgumentException("at least one member CIN is required");
         }
     }
 
@@ -107,5 +119,42 @@ public class PartyService
         {
             throw new IllegalStateException("Party name already used");
         }
+    }
+
+    private List<Citizen> resolveMembersByCin(List<String> memberCins, boolean requireMembers)
+    {
+        if (memberCins == null || memberCins.isEmpty())
+        {
+            if (requireMembers)
+            {
+                throw new IllegalArgumentException("at least one member CIN is required");
+            }
+            return new ArrayList<>();
+        }
+
+        var uniqueCins = new LinkedHashSet<String>();
+        for (String rawCin : memberCins)
+        {
+            if (rawCin == null || rawCin.isBlank())
+            {
+                continue;
+            }
+            uniqueCins.add(rawCin.trim());
+        }
+
+        if (uniqueCins.isEmpty() && requireMembers)
+        {
+            throw new IllegalArgumentException("at least one member CIN is required");
+        }
+
+        var members = new ArrayList<Citizen>();
+        for (String cin : uniqueCins)
+        {
+            Citizen citizen = citizenRepository.findByCinAndIsDeletedFalse(cin)
+                    .orElseThrow(() -> new ResourceNotFoundException("Citizen", "cin", cin));
+            members.add(citizen);
+        }
+
+        return members;
     }
 }

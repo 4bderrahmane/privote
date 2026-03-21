@@ -20,7 +20,7 @@ public class PartyController
     private final PartyService partyService;
 
     @PostMapping("/create")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Party> createParty(@RequestBody PartyCreateDto party)
     {
         Party createdParty = partyService.createParty(party);
@@ -28,7 +28,7 @@ public class PartyController
     }
 
     @PutMapping("/{uuid}")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Party> updateParty(@PathVariable UUID uuid, @RequestBody PartyCreateDto party)
     {
         Party updatedParty = partyService.updateParty(uuid, party);
@@ -36,7 +36,7 @@ public class PartyController
     }
 
     @PatchMapping("/{uuid}")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Party> patchParty(@PathVariable UUID uuid, @RequestBody PartyPatchDto party)
     {
         Party patchedParty = partyService.patchParty(uuid, party);
@@ -51,7 +51,7 @@ public class PartyController
     }
 
     @DeleteMapping("/{uuid}")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deletePartyByUUID(@PathVariable UUID uuid)
     {
         partyService.deletePartyByPublicId(uuid);

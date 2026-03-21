@@ -1,8 +1,11 @@
 package org.krino.voting_system.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -37,6 +40,15 @@ public class Party
 
     @Column(columnDefinition = "text")
     private String description;
+
+    @ManyToMany
+    @JoinTable(
+            name = "party_members",
+            joinColumns = @JoinColumn(name = "party_id"),
+            inverseJoinColumns = @JoinColumn(name = "citizen_id")
+    )
+    @JsonIgnore
+    private List<Citizen> members = new ArrayList<>();
 
     @Override
     public boolean equals(Object o)

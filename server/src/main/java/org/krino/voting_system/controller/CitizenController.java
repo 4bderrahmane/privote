@@ -21,7 +21,7 @@ public class CitizenController
     private final CitizenService citizenService;
 
     @GetMapping
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<Citizen>> getAllCitizens()
     {
         List<Citizen> citizens = citizenService.getAllCitizens();
@@ -30,7 +30,7 @@ public class CitizenController
 
 
     @GetMapping("/{uuid}")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Citizen> getCitizenByUUID(@PathVariable UUID uuid)
     {
         Citizen citizen = citizenService.getCitizenByUUID(uuid);
