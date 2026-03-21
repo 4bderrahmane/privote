@@ -45,8 +45,4 @@ public class ElectionCreateDto
      */
     private byte[] encryptionPublicKey;
 
-    /**
-     * Optional: if provided, persisted for later tally.
-     */
-    private byte[] decryptionKey;
 }

@@ -14,7 +14,7 @@ import org.krino.voting_system.repository.ElectionRepository;
 import org.springframework.stereotype.Service;
 
 import java.math.BigInteger;
-import java.security.SecureRandom;
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -27,8 +27,6 @@ public class ElectionService
     public final ElectionRepository electionRepository;
     private final ElectionMapper electionMapper;
     private final CitizenRepository citizenRepository;
-
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     public List<Election> findAllElections()
     {
@@ -59,15 +57,17 @@ public class ElectionService
         validateTimeRange(electionDto.getStartTime(), electionDto.getEndTime());
 
         Election election = electionMapper.toEntity(electionDto);
+        if (election.getPublicId() == null)
+        {
+            election.setPublicId(UUID.randomUUID());
+        }
 
         if (election.getPhase() == null)
         {
             election.setPhase(ElectionPhase.REGISTRATION);
         }
 
-        election.setExternalNullifier(
-                electionDto.getExternalNullifier() != null ? electionDto.getExternalNullifier() : generateExternalNullifier()
-        );
+        election.setExternalNullifier(resolveCanonicalExternalNullifier(election.getPublicId(), electionDto.getExternalNullifier()));
 
         var coordinator = citizenRepository.findByKeycloakId(electionDto.getCoordinatorKeycloakId())
                 .orElseThrow(() -> new ResourceNotFoundException("Citizen", "keycloakId", electionDto.getCoordinatorKeycloakId()));
@@ -113,10 +113,7 @@ public class ElectionService
             election.setCoordinator(resolveCoordinator(patchDto.getCoordinatorKeycloakId()));
         }
 
-        if (patchDto.getExternalNullifier() != null)
-        {
-            election.setExternalNullifier(patchDto.getExternalNullifier());
-        }
+        election.setExternalNullifier(resolveCanonicalExternalNullifier(election.getPublicId(), patchDto.getExternalNullifier()));
 
         return electionRepository.save(election);
     }
@@ -148,13 +145,7 @@ public class ElectionService
             election.setPhase(ElectionPhase.REGISTRATION);
         }
 
-        if (!deployed && electionDto.getExternalNullifier() != null)
-        {
-            election.setExternalNullifier(electionDto.getExternalNullifier());
-        } else if (election.getExternalNullifier() == null)
-        {
-            election.setExternalNullifier(generateExternalNullifier());
-        }
+        election.setExternalNullifier(resolveCanonicalExternalNullifier(election.getPublicId(), electionDto.getExternalNullifier()));
 
         election.setCoordinator(resolveCoordinator(electionDto.getCoordinatorKeycloakId()));
 
@@ -249,11 +240,26 @@ public class ElectionService
                 .orElseThrow(() -> new ResourceNotFoundException("Citizen", "keycloakId", coordinatorKeycloakId));
     }
 
-    private static BigInteger generateExternalNullifier()
+    public static BigInteger deriveExternalNullifier(UUID publicId)
     {
-        // Positive uint256
-        byte[] bytes = new byte[32];
-        SECURE_RANDOM.nextBytes(bytes);
-        return new BigInteger(1, bytes);
+        if (publicId == null)
+        {
+            throw new IllegalArgumentException("publicId is required");
+        }
+
+        ByteBuffer buffer = ByteBuffer.allocate(16);
+        buffer.putLong(publicId.getMostSignificantBits());
+        buffer.putLong(publicId.getLeastSignificantBits());
+        return new BigInteger(1, buffer.array());
+    }
+
+    private static BigInteger resolveCanonicalExternalNullifier(UUID publicId, BigInteger requested)
+    {
+        BigInteger canonical = deriveExternalNullifier(publicId);
+        if (requested != null && !canonical.equals(requested))
+        {
+            throw new IllegalArgumentException("externalNullifier must match the canonical UUID-derived election scope");
+        }
+        return canonical;
     }
 }

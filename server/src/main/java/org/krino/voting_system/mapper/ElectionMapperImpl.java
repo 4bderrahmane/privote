@@ -25,7 +25,6 @@ public class ElectionMapperImpl implements ElectionMapper
         election.setEndTime(dto.getEndTime());
         election.setPhase(dto.getPhase());
         election.setEncryptionPublicKey(dto.getEncryptionPublicKey());
-        election.setDecryptionMaterial(dto.getDecryptionKey());
     }
 
     @Override
@@ -54,10 +53,6 @@ public class ElectionMapperImpl implements ElectionMapper
         if (dto.getEncryptionPublicKey() != null)
         {
             election.setEncryptionPublicKey(dto.getEncryptionPublicKey());
-        }
-        if (dto.getDecryptionKey() != null)
-        {
-            election.setDecryptionMaterial(dto.getDecryptionKey());
         }
     }
 

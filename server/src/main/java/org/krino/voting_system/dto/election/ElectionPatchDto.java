@@ -18,5 +18,4 @@ public class ElectionPatchDto
     private BigInteger externalNullifier;
     private UUID coordinatorKeycloakId;
     private byte[] encryptionPublicKey;
-    private byte[] decryptionKey;
 }
