@@ -2,12 +2,17 @@ package org.krino.voting_system.service;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
+import org.krino.voting_system.dto.candidate.CandidateCreateByCinDto;
 import org.krino.voting_system.dto.candidate.CandidateCreateDto;
 import org.krino.voting_system.dto.candidate.CandidatePatchDto;
+import org.krino.voting_system.dto.candidate.CandidateResponseDto;
 import org.krino.voting_system.entity.Candidate;
 import org.krino.voting_system.entity.Citizen;
 import org.krino.voting_system.entity.Election;
 import org.krino.voting_system.entity.Party;
+import org.krino.voting_system.entity.enums.CandidateStatus;
+import org.krino.voting_system.entity.enums.ElectionPhase;
 import org.krino.voting_system.exception.ResourceNotFoundException;
 import org.krino.voting_system.mapper.CandidateMapper;
 import org.krino.voting_system.repository.CandidateRepository;
@@ -30,44 +35,92 @@ public class CandidateService
     private final PartyRepository partyRepository;
     private final CandidateMapper candidateMapper;
 
-    public List<Candidate> getAllCandidates()
+    public List<CandidateResponseDto> getAllCandidates()
     {
-        return candidateRepository.findAll();
+        return candidateRepository.findAll().stream()
+                .map(CandidateResponseDto::fromEntity)
+                .toList();
     }
 
-    public List<Candidate> getCandidatesByElectionPublicId(UUID electionPublicId)
+    public List<CandidateResponseDto> getCandidatesByElectionPublicId(UUID electionPublicId)
     {
-        return candidateRepository.findByElectionPublicId(electionPublicId);
+        resolveElection(electionPublicId);
+        return candidateRepository.findByElectionPublicId(electionPublicId).stream()
+                .map(CandidateResponseDto::fromEntity)
+                .toList();
     }
 
-    public Candidate getCandidateByPublicId(UUID publicId)
+    public List<CandidateResponseDto> getActiveCandidatesByElectionPublicId(UUID electionPublicId)
     {
-        return candidateRepository.findByPublicId(publicId)
-                .orElseThrow(() -> new ResourceNotFoundException(Candidate.class.getSimpleName(), "UUID", publicId));
+        resolveElection(electionPublicId);
+        return candidateRepository.findByElectionPublicIdAndStatus(
+                        electionPublicId,
+                        CandidateStatus.ACTIVE
+                ).stream()
+                .map(CandidateResponseDto::fromEntity)
+                .toList();
     }
 
-    public Candidate createCandidate(CandidateCreateDto candidateDto)
+    public CandidateResponseDto getCandidateByPublicId(UUID publicId)
+    {
+        return CandidateResponseDto.fromEntity(getRequiredCandidate(publicId));
+    }
+
+    public CandidateResponseDto createCandidate(CandidateCreateDto candidateDto)
     {
         validateCreateDto(candidateDto);
         ensureCandidacyAvailable(candidateDto.getElectionPublicId(), candidateDto.getCitizenPublicId(), null);
 
+        Election election = resolveElection(candidateDto.getElectionPublicId());
+        requireRegistrationPhase(election);
         Candidate candidate = candidateMapper.toEntity(candidateDto);
-        applyRelations(candidate, candidateDto.getCitizenPublicId(), candidateDto.getElectionPublicId(), candidateDto.getPartyPublicId());
-        return candidateRepository.save(candidate);
+        applyRelations(candidate, resolveCitizen(candidateDto.getCitizenPublicId()), election, resolveParty(candidateDto.getPartyPublicId()));
+        return CandidateResponseDto.fromEntity(candidateRepository.save(candidate));
     }
 
-    public Candidate updateCandidate(UUID publicId, CandidateCreateDto candidateDto)
+    public CandidateResponseDto createCandidateByCin(UUID electionPublicId, CandidateCreateByCinDto candidateDto)
+    {
+        validateCreateByCinDto(candidateDto);
+
+        Election election = resolveElection(electionPublicId);
+        requireRegistrationPhase(election);
+        Citizen citizen = resolveCitizenByCin(candidateDto.getCitizenCin());
+        ensureCandidacyAvailable(electionPublicId, citizen.getKeycloakId(), null);
+
+        Candidate candidate = new Candidate();
+        candidate.setElection(election);
+        candidate.setCitizen(citizen);
+        candidate.setParty(resolveParty(candidateDto.getPartyPublicId()));
+        validatePartyMembership(candidate.getParty(), citizen);
+        if (candidateDto.getStatus() != null)
+        {
+            candidate.setStatus(candidateDto.getStatus());
+        }
+
+        return CandidateResponseDto.fromEntity(candidateRepository.save(candidate));
+    }
+
+    public CandidateResponseDto updateCandidate(UUID publicId, CandidateCreateDto candidateDto)
     {
         validateCreateDto(candidateDto);
-        ensureCandidacyAvailable(candidateDto.getElectionPublicId(), candidateDto.getCitizenPublicId(), publicId);
 
         Candidate candidate = getRequiredCandidate(publicId);
+        requireRegistrationPhase(candidate.getElection());
         candidateMapper.updateEntity(candidateDto, candidate);
-        applyRelations(candidate, candidateDto.getCitizenPublicId(), candidateDto.getElectionPublicId(), candidateDto.getPartyPublicId());
-        return candidateRepository.save(candidate);
+
+        Election election = resolveElection(candidateDto.getElectionPublicId());
+        requireRegistrationPhase(election);
+        ensureCandidacyAvailable(candidateDto.getElectionPublicId(), candidateDto.getCitizenPublicId(), publicId);
+        applyRelations(
+                candidate,
+                resolveCitizen(candidateDto.getCitizenPublicId()),
+                election,
+                resolveParty(candidateDto.getPartyPublicId())
+        );
+        return CandidateResponseDto.fromEntity(candidateRepository.save(candidate));
     }
 
-    public Candidate patchCandidate(UUID publicId, CandidatePatchDto patchDto)
+    public CandidateResponseDto patchCandidate(UUID publicId, CandidatePatchDto patchDto)
     {
         if (patchDto == null)
         {
@@ -75,6 +128,7 @@ public class CandidateService
         }
 
         Candidate candidate = getRequiredCandidate(publicId);
+        requireRegistrationPhase(candidate.getElection());
         UUID effectiveCitizenPublicId = patchDto.getCitizenPublicId() != null
                 ? patchDto.getCitizenPublicId()
                 : candidate.getCitizen().getKeycloakId();
@@ -82,16 +136,24 @@ public class CandidateService
                 ? patchDto.getElectionPublicId()
                 : candidate.getElection().getPublicId();
 
+        Election election = resolveElection(effectiveElectionPublicId);
+        requireRegistrationPhase(election);
         ensureCandidacyAvailable(effectiveElectionPublicId, effectiveCitizenPublicId, publicId);
 
         candidateMapper.patchEntity(patchDto, candidate);
-        applyRelations(candidate, effectiveCitizenPublicId, effectiveElectionPublicId, resolveEffectivePartyPublicId(candidate, patchDto));
-        return candidateRepository.save(candidate);
+        applyRelations(
+                candidate,
+                resolveCitizen(effectiveCitizenPublicId),
+                election,
+                resolveParty(resolveEffectivePartyPublicId(candidate, patchDto))
+        );
+        return CandidateResponseDto.fromEntity(candidateRepository.save(candidate));
     }
 
     public void deleteCandidateByPublicId(UUID publicId)
     {
         Candidate candidate = getRequiredCandidate(publicId);
+        requireRegistrationPhase(candidate.getElection());
         candidateRepository.delete(candidate);
     }
 
@@ -117,6 +179,18 @@ public class CandidateService
         }
     }
 
+    private void validateCreateByCinDto(CandidateCreateByCinDto candidateDto)
+    {
+        if (candidateDto == null)
+        {
+            throw new IllegalArgumentException("Candidate payload is required");
+        }
+        if (candidateDto.getCitizenCin() == null || candidateDto.getCitizenCin().isBlank())
+        {
+            throw new IllegalArgumentException("citizenCin is required");
+        }
+    }
+
     private void ensureCandidacyAvailable(UUID electionPublicId, UUID citizenPublicId, UUID currentCandidatePublicId)
     {
         boolean exists = currentCandidatePublicId == null
@@ -133,11 +207,12 @@ public class CandidateService
         }
     }
 
-    private void applyRelations(Candidate candidate, UUID citizenPublicId, UUID electionPublicId, UUID partyPublicId)
+    private void applyRelations(Candidate candidate, Citizen citizen, Election election, @Nullable Party party)
     {
-        candidate.setCitizen(resolveCitizen(citizenPublicId));
-        candidate.setElection(resolveElection(electionPublicId));
-        candidate.setParty(resolveParty(partyPublicId));
+        candidate.setCitizen(citizen);
+        candidate.setElection(election);
+        candidate.setParty(party);
+        validatePartyMembership(party, citizen);
     }
 
     private UUID resolveEffectivePartyPublicId(Candidate candidate, CandidatePatchDto patchDto)
@@ -155,6 +230,13 @@ public class CandidateService
                 .orElseThrow(() -> new ResourceNotFoundException(Citizen.class.getSimpleName(), "UUID", citizenPublicId));
     }
 
+    private Citizen resolveCitizenByCin(String citizenCin)
+    {
+        String normalizedCin = citizenCin.trim();
+        return citizenRepository.findByCinAndIsDeletedFalse(normalizedCin)
+                .orElseThrow(() -> new ResourceNotFoundException(Citizen.class.getSimpleName(), "cin", normalizedCin));
+    }
+
     private Election resolveElection(UUID electionPublicId)
     {
         return electionRepository.findByPublicId(electionPublicId)
@@ -170,5 +252,29 @@ public class CandidateService
 
         return partyRepository.findByPublicId(partyPublicId)
                 .orElseThrow(() -> new ResourceNotFoundException(Party.class.getSimpleName(), "UUID", partyPublicId));
+    }
+
+    private void validatePartyMembership(@Nullable Party party, Citizen citizen)
+    {
+        if (party == null)
+        {
+            return;
+        }
+
+        boolean member = party.getMembers().stream()
+                .anyMatch(candidateCitizen -> citizen.getKeycloakId().equals(candidateCitizen.getKeycloakId()));
+
+        if (!member)
+        {
+            throw new IllegalStateException("Citizen must be a member of the selected party");
+        }
+    }
+
+    private void requireRegistrationPhase(Election election)
+    {
+        if (election.getPhase() != ElectionPhase.REGISTRATION)
+        {
+            throw new IllegalStateException("Candidates can only be managed while the election is in REGISTRATION");
+        }
     }
 }

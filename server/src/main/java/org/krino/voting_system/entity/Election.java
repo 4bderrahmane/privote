@@ -1,5 +1,4 @@
 package org.krino.voting_system.entity;
-
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
