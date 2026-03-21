@@ -76,7 +76,7 @@ async function deployVerifierIfNeeded() {
   }
 
   const Verifier = await ethers.getContractFactory(
-    "contracts/test/MockSemaphoreVerifier.sol:MockSemaphoreVerifier"
+    "contracts/test/MockGroth16Verifier.sol:MockGroth16Verifier"
   );
   const verifier = await Verifier.deploy();
   await verifier.waitForDeployment();
@@ -177,7 +177,7 @@ async function main() {
   console.log("Deployer:", deployer.address);
   console.log("Network:", { chainId: net.chainId.toString() });
   console.log("PoseidonT3:", poseidonT3.target);
-  if (deployedMock) console.log("MockSemaphoreVerifier:", deployedMock);
+  if (deployedMock) console.log("MockGroth16Verifier:", deployedMock);
   console.log("SemaphoreVerifier:", verifierAddress);
   console.log("ElectionFactory:", factory.target);
   if (electionAddress) {
