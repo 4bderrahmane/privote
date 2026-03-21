@@ -1,0 +1,14 @@
+.git
+.gitignore
+.idea
+.pnpm-store
+.env
+node_modules
+dist
+coverage
+test
+scripts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
