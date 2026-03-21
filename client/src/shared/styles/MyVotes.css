@@ -50,6 +50,11 @@
     background: var(--warning-soft);
 }
 
+.myvotes-status--recorded {
+    color: #1d4d7a;
+    background: #e8f1fb;
+}
+
 .myvotes-item-details {
     display: flex;
     flex-direction: column;
@@ -75,10 +80,24 @@
     font-size: 0.9rem;
 }
 
+.myvotes-election-link {
+    display: inline-flex;
+    margin-top: 4px;
+    color: var(--primary);
+    font-size: 0.84rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.myvotes-election-link:hover {
+    text-decoration: underline;
+}
+
 .myvotes-hash-container {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-wrap: wrap;
 }
 
 .myvotes-hash {
@@ -89,14 +108,17 @@
     padding: 4px 7px;
     font-size: 0.8rem;
     font-family: "Fira Code", "IBM Plex Mono", monospace;
+    word-break: break-all;
 }
 
 .myvotes-copy-btn {
     border: 1px solid #d2ddeb;
     border-radius: 8px;
     background: #ffffff;
-    padding: 4px 7px;
+    padding: 4px 9px;
     cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
 }
 
 .myvotes-copy-btn:hover {
@@ -106,6 +128,17 @@
 .myvotes-copy-btn:focus-visible {
     outline: 2px solid #9db8d8;
     outline-offset: 1px;
+}
+
+.myvotes-note {
+    margin-top: 12px;
+    border: 1px dashed #c8d7ea;
+    border-radius: 10px;
+    background: #f7fbff;
+    color: #526579;
+    font-size: 0.83rem;
+    line-height: 1.5;
+    padding: 10px 12px;
 }
 
 @media (max-width: 560px) {

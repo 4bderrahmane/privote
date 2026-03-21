@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/auth/useAuth.ts";
@@ -31,6 +31,7 @@ import {
     voterRegistrationManagement,
 } from "../services/VoterRegistrationService";
 import { castMyVote, voteManagement } from "../services/VoteService";
+import { saveMyVoteReceipt } from "../services/MyVoteReceiptStorage";
 import type { Candidate, CandidateStatus } from "../types/candidate";
 import type { Election, ElectionStatus } from "../types/election";
 import type { Party } from "../types/party";
@@ -144,23 +145,25 @@ export default function ElectionDetails() {
     const auth = useAuth();
     const { showSuccessToast } = useSuccessToast();
     const isAdmin = auth.status === "authenticated" && isAdminUser(auth.user);
+    const showErrorToast = useCallback(
+        (message: string) => {
+            showSuccessToast(message, 5000, "error");
+        },
+        [showSuccessToast]
+    );
 
     const [election, setElection] = useState<Election | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState("");
     const [candidates, setCandidates] = useState<Candidate[]>([]);
     const [candidateLoading, setCandidateLoading] = useState(true);
-    const [candidateError, setCandidateError] = useState("");
     const [parties, setParties] = useState<Party[]>([]);
     const [form, setForm] = useState<CandidateForm>(INITIAL_CANDIDATE_FORM);
-    const [saveError, setSaveError] = useState("");
     const [savingCandidate, setSavingCandidate] = useState(false);
     const [registration, setRegistration] = useState<VoterRegistration | null>(null);
     const [registrationLoading, setRegistrationLoading] = useState(!isAdmin);
-    const [registrationError, setRegistrationError] = useState("");
     const [identityPassword, setIdentityPassword] = useState("");
     const [identityPasswordConfirm, setIdentityPasswordConfirm] = useState("");
-    const [workflowError, setWorkflowError] = useState("");
     const [workflowBusy, setWorkflowBusy] = useState<"register" | "vote" | null>(null);
     const [selectedCandidatePublicId, setSelectedCandidatePublicId] = useState("");
     const [identityVaultPresent, setIdentityVaultPresent] = useState(() => safeHasIdentityVault());
@@ -212,7 +215,6 @@ export default function ElectionDetails() {
             }
 
             setCandidateLoading(true);
-            setCandidateError("");
 
             try {
                 const [loadedCandidates, loadedParties] = await Promise.all([
@@ -234,12 +236,13 @@ export default function ElectionDetails() {
                     : t("candidates.errors.loadFailed", {
                           defaultValue: "Unable to load candidates.",
                       });
-                setCandidateError(
-                    partyManagement.asErrorMessage(
-                        error,
-                        candidateManagement.asErrorMessage(error, fallback)
-                    )
+                const message = partyManagement.asErrorMessage(
+                    error,
+                    candidateManagement.asErrorMessage(error, fallback)
                 );
+                setCandidates([]);
+                setParties([]);
+                showErrorToast(message);
             } finally {
                 if (!cancelled) setCandidateLoading(false);
             }
@@ -250,7 +253,7 @@ export default function ElectionDetails() {
         return () => {
             cancelled = true;
         };
-    }, [electionId, isAdmin, t]);
+    }, [electionId, isAdmin, showErrorToast, t]);
 
     useEffect(() => {
         let cancelled = false;
@@ -262,7 +265,6 @@ export default function ElectionDetails() {
             }
 
             setRegistrationLoading(true);
-            setRegistrationError("");
 
             try {
                 const data = await getMyRegistrationByElectionPublicId(electionId);
@@ -270,7 +272,7 @@ export default function ElectionDetails() {
                 setRegistration(data);
             } catch (error) {
                 if (cancelled) return;
-                setRegistrationError(
+                showErrorToast(
                     voterRegistrationManagement.asErrorMessage(
                         error,
                         t("vote.errors.registrationLoadFailed", {
@@ -288,7 +290,7 @@ export default function ElectionDetails() {
         return () => {
             cancelled = true;
         };
-    }, [electionId, isAdmin, t]);
+    }, [electionId, isAdmin, showErrorToast, t]);
 
     useEffect(() => {
         if (candidates.length === 0) {
@@ -317,7 +319,7 @@ export default function ElectionDetails() {
         }
 
         if (!form.citizenCin.trim()) {
-            setSaveError(
+            showErrorToast(
                 t("candidates.errors.cinRequired", {
                     defaultValue: "Citizen CIN is required.",
                 })
@@ -325,7 +327,6 @@ export default function ElectionDetails() {
             return;
         }
 
-        setSaveError("");
         setSavingCandidate(true);
 
         try {
@@ -345,7 +346,7 @@ export default function ElectionDetails() {
                 })
             );
         } catch (error) {
-            setSaveError(
+            showErrorToast(
                 candidateManagement.asErrorMessage(
                     error,
                     t("candidates.errors.submitFailed", {
@@ -418,7 +419,6 @@ export default function ElectionDetails() {
         }
 
         setWorkflowBusy("register");
-        setWorkflowError("");
 
         try {
             const { identity, createdVault } = await deriveElectionIdentity();
@@ -436,7 +436,7 @@ export default function ElectionDetails() {
                       })
             );
         } catch (error) {
-            setWorkflowError(
+            showErrorToast(
                 voterRegistrationManagement.asErrorMessage(
                     error,
                     t("vote.errors.registrationSubmitFailed", {
@@ -457,7 +457,7 @@ export default function ElectionDetails() {
         }
 
         if (!registration || registration.commitmentStatus !== "ON_CHAIN") {
-            setWorkflowError(
+            showErrorToast(
                 t("vote.errors.registrationRequired", {
                     defaultValue: "Complete voter registration before casting a vote.",
                 })
@@ -466,7 +466,7 @@ export default function ElectionDetails() {
         }
 
         if (registration.participationStatus === "CAST") {
-            setWorkflowError(
+            showErrorToast(
                 t("vote.errors.alreadyCast", {
                     defaultValue: "You have already submitted a ballot for this election.",
                 })
@@ -475,7 +475,7 @@ export default function ElectionDetails() {
         }
 
         if (!selectedCandidate) {
-            setWorkflowError(
+            showErrorToast(
                 t("vote.errors.candidateRequired", {
                     defaultValue: "Select a candidate before submitting your ballot.",
                 })
@@ -484,7 +484,7 @@ export default function ElectionDetails() {
         }
 
         if (!election.contractAddress) {
-            setWorkflowError(
+            showErrorToast(
                 t("vote.errors.contractMissing", {
                     defaultValue: "Election contract address is missing.",
                 })
@@ -493,7 +493,7 @@ export default function ElectionDetails() {
         }
 
         if (!election.encryptionPublicKey) {
-            setWorkflowError(
+            showErrorToast(
                 t("vote.errors.publicKeyMissing", {
                     defaultValue: "Election encryption public key is missing.",
                 })
@@ -502,7 +502,6 @@ export default function ElectionDetails() {
         }
 
         setWorkflowBusy("vote");
-        setWorkflowError("");
 
         try {
             const { identity } = await deriveElectionIdentity();
@@ -544,6 +543,10 @@ export default function ElectionDetails() {
                 proof: proof.points.map((point) => point.toString()),
             });
 
+            if (auth.status === "authenticated") {
+                saveMyVoteReceipt(auth.user.id, election.title, receipt);
+            }
+
             setRegistration((prev) =>
                 prev
                     ? {
@@ -560,7 +563,7 @@ export default function ElectionDetails() {
                 })
             );
         } catch (error) {
-            setWorkflowError(
+            showErrorToast(
                 voteManagement.asErrorMessage(
                     error,
                     voterRegistrationManagement.asErrorMessage(
@@ -722,7 +725,10 @@ export default function ElectionDetails() {
                         </div>
 
                         <div className="election-details-pill">
-                            {candidates.length} {candidates.length === 1 ? "candidate" : "candidates"}
+                            {t(candidates.length === 1 ? "candidates.countOne" : "candidates.countOther", {
+                                count: candidates.length,
+                                defaultValue: candidates.length === 1 ? "{{count}} candidate" : "{{count}} candidates",
+                            })}
                         </div>
                     </div>
 
@@ -785,10 +791,6 @@ export default function ElectionDetails() {
                                 </div>
                             ) : null}
 
-                            {saveError ? (
-                                <div className="election-details-banner election-details-banner-error">{saveError}</div>
-                            ) : null}
-
                             <div className="election-candidate-form-actions">
                                 <button
                                     type="submit"
@@ -803,9 +805,7 @@ export default function ElectionDetails() {
                         </form>
                     ) : null}
 
-                    {candidateError ? (
-                        <div className="election-details-banner election-details-banner-error">{candidateError}</div>
-                    ) : candidateLoading ? (
+                    {candidateLoading ? (
                         <div className="election-details-banner">
                             {t("candidates.loading", { defaultValue: "Loading candidates..." })}
                         </div>
@@ -888,9 +888,7 @@ export default function ElectionDetails() {
                             </div>
                         </div>
 
-                        {registrationError ? (
-                            <div className="election-details-banner election-details-banner-error">{registrationError}</div>
-                        ) : registrationLoading ? (
+                        {registrationLoading ? (
                             <div className="election-details-banner">
                                 {t("vote.loadingRegistration", { defaultValue: "Loading your registration status..." })}
                             </div>
@@ -905,11 +903,15 @@ export default function ElectionDetails() {
                                         autoComplete="current-password"
                                         value={identityPassword}
                                         onChange={(event) => setIdentityPassword(event.target.value)}
-                                        placeholder={t("vote.placeholders.password", {
-                                            defaultValue: identityVaultPresent
-                                                ? "Unlock your local voter identity"
-                                                : "Create a password for your local voter identity",
-                                        })}
+                                        placeholder={
+                                            identityVaultPresent
+                                                ? t("vote.placeholders.passwordUnlock", {
+                                                      defaultValue: "Unlock your local voter identity",
+                                                  })
+                                                : t("vote.placeholders.passwordCreate", {
+                                                      defaultValue: "Create a password for your local voter identity",
+                                                  })
+                                        }
                                     />
                                 </label>
 
@@ -1033,10 +1035,6 @@ export default function ElectionDetails() {
                                     defaultValue: "Voting is closed. This election is currently in tally.",
                                 })}
                             </div>
-                        ) : null}
-
-                        {workflowError ? (
-                            <div className="election-details-banner election-details-banner-error">{workflowError}</div>
                         ) : null}
                     </section>
                 ) : null}
