@@ -1,11 +1,14 @@
+.dashboard-container,
 .app-layout {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    background-color: #ffffff;
 }
 
 .main-content {
     flex: 1;
-    padding-top: 20px;
-    background-color: white;
+    min-height: 100vh;
+    padding-top: 78px;
+    background-color: #ffffff;
 }

@@ -3,7 +3,8 @@
     border: 1px solid var(--line);
     border-radius: 14px;
     padding: 20px;
-    max-width: 760px;
+    width: 100%;
+    max-width: none;
 }
 
 .settings-card h2 {
@@ -53,8 +54,10 @@
 }
 
 .info-value:disabled {
-    background-color: #f3f6fb;
+    background-color: #ffffff;
     color: #6b7280;
+    -webkit-text-fill-color: #6b7280;
+    opacity: 1;
     cursor: not-allowed;
 }
 

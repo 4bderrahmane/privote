@@ -5,26 +5,26 @@
 }
 
 .settings-nav-link {
-    color: var(--muted);
+    color: #334155;
     text-decoration: none;
     font-size: 0.9rem;
-    font-weight: 600;
-    border-radius: 10px;
-    padding: 8px 10px;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    font-weight: 500;
+    border-radius: 12px;
+    padding: 10px 12px;
+    transition: background-color 0.16s ease, color 0.16s ease;
 }
 
 .settings-nav-link:hover {
-    background-color: #edf3fb;
-    color: var(--text);
+    background-color: #eff5fb;
+    color: #0f4c81;
 }
 
 .settings-nav-link.active {
-    background: var(--primary-soft);
-    color: var(--primary);
+    background: #eff5fb;
+    color: #0f4c81;
 }
 
 .settings-nav-link-delete.active {
-    background: var(--danger-soft);
-    color: var(--danger-text);
+    background: #fff4ed;
+    color: #c2410c;
 }

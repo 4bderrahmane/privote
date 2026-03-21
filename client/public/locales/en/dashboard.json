@@ -1,0 +1,26 @@
+{
+  "admin": {
+    "title": "Admin dashboard",
+    "subtitle": "Welcome back, {{name}}. Manage elections, review results, and control the election lifecycle from here.",
+    "action": "Create election"
+  },
+  "citizen": {
+    "title": "Citizen dashboard",
+    "subtitle": "Welcome back, {{name}}. Browse available elections, cast your vote, and follow published results.",
+    "action": "View elections"
+  },
+  "chooseRole": {
+    "title": "Choose how you want to enter",
+    "subtitle": "Your account has both citizen and admin access. Pick the interface you want to use for this session.",
+    "citizen": {
+      "title": "Citizen mode",
+      "description": "Vote in elections, track your ballots, and view published results.",
+      "action": "Continue as Citizen"
+    },
+    "admin": {
+      "title": "Admin mode",
+      "description": "Create elections, manage election flow, and access administrative views.",
+      "action": "Continue as Admin"
+    }
+  }
+}

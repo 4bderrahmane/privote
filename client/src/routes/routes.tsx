@@ -1,23 +1,31 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import RouteErrorElement from "./RouteErrorElement";
 
 import PublicLayout from "../shared/layouts/PublicLayout";
 import DashboardLayout from "../shared/layouts/DashboardLayout";
+import AdminLayout from "../shared/layouts/AdminLayout";
+import CitizenLayout from "../shared/layouts/CitizenLayout";
 
 import PublicOnly from "../auth/guards/PublicOnly.tsx";
 import RequireAuth from "../auth/guards/RequireAuth.tsx";
+import EnsureActiveRole from "../auth/guards/EnsureActiveRole.tsx";
+import RequireRole from "../auth/guards/RequireRole.tsx";
 
 import WelcomePage from "@/auth/components/WelcomePage";
 import LoginRedirect from "@/auth/components/LoginRedirect";
 import RegisterRedirect from "@/auth/components/RegisterRedirect";
 
 import LogoutPage from "@/auth/components/LogoutPage";
-import Dashboard from "../shared/components/Dashboard"
+import AdminDashboard from "../shared/components/AdminDashboard";
+import CitizenDashboard from "../shared/components/CitizenDashboard";
+import ChooseRole from "../shared/components/ChooseRole";
+import DashboardRedirect from "../shared/components/DashboardRedirect";
 import NotFoundPage from "../shared/components/NotFoundPage";
 import Elections from "../shared/components/Elections";
 import Results from "../shared/components/Results";
 import MyVotes from "../shared/components/MyVotes";
+import RoleRouteRedirect from "../shared/components/RoleRouteRedirect";
 import Settings from "@/user-management/components/settings/Settings.tsx";
 
 const router = createBrowserRouter([
@@ -42,55 +50,83 @@ const router = createBrowserRouter([
             {
                 path: "/dashboard",
                 element: <RequireAuth />,
-                children: [
-                    {
-                        element: <DashboardLayout />,
-                        children: [
-                            { index: true, element: <Dashboard /> },
-                            // { path: "profile", element: <ProfilePage /> },
-                            { path: "*", element: <NotFoundPage /> }
-                        ],
-                    },
-                ],
+                children: [{ index: true, element: <DashboardRedirect /> }],
+            },
+
+            {
+                path: "/choose-role",
+                element: <RequireAuth />,
+                children: [{ index: true, element: <ChooseRole /> }],
             },
 
             {
                 path: "/elections",
                 element: <RequireAuth />,
-                children: [
-                    {
-                        element: <DashboardLayout />,
-                        children: [
-                            { index: true, element: <Elections /> },
-                            { path: "*", element: <NotFoundPage /> },
-                        ],
-                    },
-                ],
+                children: [{ index: true, element: <RoleRouteRedirect target="elections" /> }],
             },
 
             {
                 path: "/results",
                 element: <RequireAuth />,
+                children: [{ index: true, element: <RoleRouteRedirect target="results" /> }],
+            },
+
+            {
+                path: "/my-votes",
+                element: <RequireAuth />,
+                children: [{ index: true, element: <RoleRouteRedirect target="my-votes" /> }],
+            },
+
+            {
+                path: "/admin",
+                element: <RequireAuth />,
                 children: [
                     {
-                        element: <DashboardLayout />,
+                        element: <EnsureActiveRole />,
                         children: [
-                            { index: true, element: <Results /> },
-                            { path: "*", element: <NotFoundPage /> },
+                            {
+                                element: <RequireRole allow={["admin"]} />,
+                                children: [
+                                    {
+                                        element: <AdminLayout />,
+                                        children: [
+                                            { index: true, element: <Navigate to="dashboard" replace /> },
+                                            { path: "dashboard", element: <AdminDashboard /> },
+                                            { path: "elections", element: <Elections /> },
+                                            { path: "results", element: <Results /> },
+                                            { path: "*", element: <NotFoundPage /> },
+                                        ],
+                                    },
+                                ],
+                            },
                         ],
                     },
                 ],
             },
 
             {
-                path: "/my-votes",
+                path: "/citizen",
                 element: <RequireAuth />,
                 children: [
                     {
-                        element: <DashboardLayout />,
+                        element: <EnsureActiveRole />,
                         children: [
-                            { index: true, element: <MyVotes /> },
-                            { path: "*", element: <NotFoundPage /> },
+                            {
+                                element: <RequireRole allow={["citizen"]} />,
+                                children: [
+                                    {
+                                        element: <CitizenLayout />,
+                                        children: [
+                                            { index: true, element: <Navigate to="dashboard" replace /> },
+                                            { path: "dashboard", element: <CitizenDashboard /> },
+                                            { path: "elections", element: <Elections /> },
+                                            { path: "results", element: <Results /> },
+                                            { path: "my-votes", element: <MyVotes /> },
+                                            { path: "*", element: <NotFoundPage /> },
+                                        ],
+                                    },
+                                ],
+                            },
                         ],
                     },
                 ],
@@ -101,12 +137,17 @@ const router = createBrowserRouter([
                 element: <RequireAuth />,
                 children: [
                     {
-                        element: <DashboardLayout />,
+                        element: <EnsureActiveRole />,
                         children: [
-                            { index: true, element: <Settings section="profile" /> },
-                            { path: "profile", element: <Settings section="profile" /> },
-                            { path: "delete", element: <Settings section="delete" /> },
-                            { path: "*", element: <NotFoundPage /> },
+                            {
+                                element: <DashboardLayout />,
+                                children: [
+                                    { index: true, element: <Settings section="profile" /> },
+                                    { path: "profile", element: <Settings section="profile" /> },
+                                    { path: "delete", element: <Settings section="delete" /> },
+                                    { path: "*", element: <NotFoundPage /> },
+                                ],
+                            },
                         ],
                     },
                 ],

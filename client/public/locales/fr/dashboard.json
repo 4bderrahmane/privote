@@ -1,0 +1,26 @@
+{
+  "admin": {
+    "title": "Tableau de bord administrateur",
+    "subtitle": "Bon retour, {{name}}. Gérez les élections, consultez les résultats et contrôlez le cycle de vie des élections depuis ici.",
+    "action": "Créer une élection"
+  },
+  "citizen": {
+    "title": "Tableau de bord citoyen",
+    "subtitle": "Bon retour, {{name}}. Parcourez les élections disponibles, votez et suivez les résultats publiés.",
+    "action": "Voir les élections"
+  },
+  "chooseRole": {
+    "title": "Choisissez comment vous souhaitez entrer",
+    "subtitle": "Votre compte dispose des accès citoyen et administrateur. Choisissez l'interface que vous souhaitez utiliser pour cette session.",
+    "citizen": {
+      "title": "Mode citoyen",
+      "description": "Votez aux élections, suivez vos bulletins et consultez les résultats publiés.",
+      "action": "Continuer comme citoyen"
+    },
+    "admin": {
+      "title": "Mode administrateur",
+      "description": "Créez des élections, gérez leur déroulement et accédez aux vues administratives.",
+      "action": "Continuer comme administrateur"
+    }
+  }
+}

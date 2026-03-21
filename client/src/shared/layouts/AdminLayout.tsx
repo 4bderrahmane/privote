@@ -2,7 +2,7 @@ import { Outlet } from "react-router-dom";
 import Navbar from "../components/NavBar.tsx";
 import "../styles/Layout.css";
 
-export default function DashboardLayout() {
+export default function AdminLayout() {
     return (
         <div className="dashboard-container">
             <div className="main-content">
@@ -12,3 +12,4 @@ export default function DashboardLayout() {
         </div>
     );
 }
+

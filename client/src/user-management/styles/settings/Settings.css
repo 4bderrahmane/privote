@@ -56,11 +56,10 @@
 }
 
 .settings-content {
-  border-radius: 18px;
-  border: 1px solid var(--line);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
-  box-shadow: var(--shadow-sm);
-  padding: 18px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .settings-status {
@@ -74,8 +73,7 @@
   }
 
   .settings-content {
-    border-radius: 14px;
-    padding: 12px;
+    padding: 0;
   }
 
   .settings-tabs {
