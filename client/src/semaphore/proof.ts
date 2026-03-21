@@ -48,7 +48,7 @@ function parseHexBytes(hexValue: string): Uint8Array {
         const byte = Number.parseInt(byteHex, 16);
 
         if (Number.isNaN(byte)) {
-            throw new Error(`Invalid hex byte: ${byteHex}`);
+            throw new TypeError(`Invalid hex byte: ${byteHex}`);
         }
 
         out[i] = byte;
@@ -142,7 +142,7 @@ function assertMerkleDepthMatchesProof(
         throw new Error(`Invalid merkleDepth: ${merkleDepth}`);
     }
 
-    if (merkleDepth !== merkleProof.siblings.length) {
+    if (merkleProof.siblings.length > merkleDepth) {
         throw new Error(
             `Merkle proof depth mismatch. merkleDepth=${merkleDepth} but siblings.length=${merkleProof.siblings.length}`
         );
@@ -179,7 +179,7 @@ export type CreateSemaphoreProofParams = {
  * Safe application-level wrapper.
  * Enforces:
  * - proof leaf belongs to identity
- * - merkleDepth matches siblings length
+ * - merkleDepth is large enough for the proof siblings returned by the group service
  * - message/scope are canonicalized to bigint
  */
 export async function createSemaphoreProof(
@@ -277,6 +277,14 @@ export type CreateElectionVoteProofViaFastifyParams = {
     externalNullifier: FieldLike;
 
     snarkArtifacts: SnarkArtifacts;
+
+    /**
+     * Fixed depth of the local Semaphore circuit artifacts.
+     * When this is larger than the returned sibling array, missing siblings are zero-padded
+     * by @semaphore-protocol/proof during proof generation.
+     */
+    circuitDepth?: number;
+
     headers?: Record<string, string>;
     signal?: AbortSignal;
 };
@@ -297,6 +305,7 @@ export async function createElectionVoteProofViaFastify(
         ciphertext,
         externalNullifier,
         snarkArtifacts,
+        circuitDepth,
         headers,
         signal,
     } = params;
@@ -316,18 +325,13 @@ export async function createElectionVoteProofViaFastify(
     });
 
     const merkleProof = toMerkleProof(dto);
-
-    if (dto.expectedDepth !== merkleProof.siblings.length) {
-        throw new Error(
-            `Merkle proof depth mismatch. expectedDepth=${dto.expectedDepth} but siblings.length=${merkleProof.siblings.length}`
-        );
-    }
+    const effectiveMerkleDepth = Math.max(circuitDepth ?? 0, dto.expectedDepth);
 
     // Fastify already checks onChainRoot === proof.root and returns 409 if mismatch.
     return createElectionVoteProof({
         identity,
         merkleProof,
-        merkleDepth: dto.expectedDepth,
+        merkleDepth: effectiveMerkleDepth,
         ciphertext,
         externalNullifier,
         snarkArtifacts,

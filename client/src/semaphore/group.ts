@@ -13,7 +13,7 @@ import { z } from "zod";
 export const FastifyMerkleProofResponseSchema = z
     .object({
         groupId: z.string().trim().min(1),
-        expectedDepth: z.number().int().positive().max(64),
+        expectedDepth: z.number().int().nonnegative().max(64),
         root: z.string().trim().min(1),
         leaf: z.string().trim().min(1),
         siblings: z.array(z.string().trim().min(1)),

@@ -469,6 +469,24 @@ export function getVaultPublicKeyHex(vault: ElectionKeyVault): string {
     return bytesToHex(base64DecodeStrict(vault.publicKeyRawB64, "publicKeyRawB64"));
 }
 
+export async function derivePublicKeyFingerprint(publicKeyHex: string): Promise<string> {
+    const cryptoApi = assertWebCrypto();
+    const publicKey = hexToBytes(publicKeyHex);
+
+    try {
+        if (publicKey.length !== X25519_PUBLIC_KEY_BYTES) {
+            throw new Error("Election encryption public key must be exactly 32 bytes.");
+        }
+
+        const digest = new Uint8Array(
+            await cryptoApi.subtle.digest("SHA-256", asBufferSource(publicKey))
+        );
+        return bytesToHex(digest.slice(0, 8));
+    } finally {
+        wipeBytes(publicKey);
+    }
+}
+
 export function wipeBytes(bytes: Uint8Array | null | undefined): void {
     if (bytes) {
         bytes.fill(0);

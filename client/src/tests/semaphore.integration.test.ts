@@ -43,13 +43,10 @@ describe("semaphore integration", () => {
             return new Response(
                 JSON.stringify({
                     groupId: "group-1",
-                    expectedDepth: SEMAPHORE_ARTIFACT_DEPTH,
-                    root: "0",
+                    expectedDepth: 0,
+                    root: identity.commitment.toString(),
                     leaf: identity.commitment.toString(),
-                    siblings: Array.from(
-                        { length: SEMAPHORE_ARTIFACT_DEPTH },
-                        () => "0"
-                    ),
+                    siblings: [],
                     index: 0,
                 }),
                 { status: 200, headers: { "content-type": "application/json" } }
@@ -63,6 +60,7 @@ describe("semaphore integration", () => {
             ciphertext,
             externalNullifier,
             snarkArtifacts,
+            circuitDepth: SEMAPHORE_ARTIFACT_DEPTH,
         });
 
         assert.match(

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useSuccessToast } from "../hooks/useSuccessToast";
 import { useAuth } from "@/auth/useAuth.ts";
@@ -25,12 +25,13 @@ import {
 import "../styles/Elections.css";
 import type { Election as ElectionApiModel, ElectionPhase, ElectionStatus } from "../types/election";
 
+
 type ElectionSummary = {
   id: string;
   title: string;
   description?: string;
-  startsAt: string;
-  endsAt: string;
+  startsAt: string; // ISO
+  endsAt: string; // ISO
   phase: ElectionPhase;
   contractAddress?: string | null;
   encryptionPublicKey?: string | null;
@@ -78,6 +79,7 @@ const Elections: React.FC = () => {
   const { showSuccessToast } = useSuccessToast();
   const auth = useAuth();
   const isAdmin = auth.status === "authenticated" && isAdminUser(auth.user);
+  const navigate = useNavigate();
 
   const [query, setQuery] = useState("");
   const [elections, setElections] = useState<ElectionSummary[]>([]);
@@ -123,24 +125,20 @@ const Elections: React.FC = () => {
 
   const [now] = useState(() => Date.now());
 
-  const handleVote = (election: ElectionSummary) => {
-    const status = computeStatus(now, new Date(election.startsAt).getTime(), new Date(election.endsAt).getTime());
+  const handleVote = (e: ElectionSummary) => {
+    const status = computeStatus(now, new Date(e.startsAt).getTime(), new Date(e.endsAt).getTime());
 
     if (status !== "open") {
       showSuccessToast(t("list.messages.notOpen"));
       return;
     }
 
-    if (election.hasVoted) {
+    if (e.hasVoted) {
       showSuccessToast(t("list.messages.alreadyVoted"));
       return;
     }
 
-    showSuccessToast(t("list.messages.votingStarted", { title: election.title }));
-  };
-
-  const handleDetails = (election: ElectionSummary) => {
-    showSuccessToast(t("list.messages.openingDetails", { title: election.title }));
+    void navigate(e.id);
   };
 
   const handleDeploy = async (election: ElectionSummary) => {
@@ -256,7 +254,7 @@ const Elections: React.FC = () => {
           <input
             className="elections-search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(ev) => setQuery(ev.target.value)}
             placeholder={t("list.searchPlaceholder")}
             aria-label={t("list.searchAria")}
           />
@@ -306,7 +304,9 @@ const Elections: React.FC = () => {
                   <div>
                     <h2 className="election-name">{election.title}</h2>
                     <p className="election-meta">{formatRange(election.startsAt, election.endsAt)}</p>
-                    {election.description ? <p className="election-meta">{election.description}</p> : null}
+                    {election.description ? (
+                      <p className="election-meta">{election.description}</p>
+                    ) : null}
                   </div>
 
                   <div className="election-badges">
@@ -331,9 +331,9 @@ const Elections: React.FC = () => {
                   </div>
 
                   <div className="election-actions">
-                    <button className="secondary-button" onClick={() => handleDetails(election)}>
+                    <Link className="secondary-button" to={election.id}>
                       {t("list.details")}
-                    </button>
+                    </Link>
                     {isAdmin && canDeploy ? (
                       <button
                         className="secondary-button"
@@ -361,7 +361,11 @@ const Elections: React.FC = () => {
                         {actionBusyId === election.id ? t("list.endingButton") : t("list.endButton")}
                       </button>
                     ) : null}
-                    <button className="primary-button" disabled={!canVote} onClick={() => handleVote(election)}>
+                    <button
+                      className="primary-button"
+                      disabled={!canVote}
+                      onClick={() => handleVote(election)}
+                    >
                       {voteButtonLabel}
                     </button>
                   </div>

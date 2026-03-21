@@ -18,7 +18,7 @@ function nodeArtifactPath(extension: "wasm" | "zkey"): string {
 }
 
 export function getSemaphoreSnarkArtifacts(): SnarkArtifacts {
-    const isBrowser = typeof window !== "undefined" && typeof document !== "undefined";
+    const isBrowser = globalThis.window !== undefined && typeof document !== "undefined";
 
     return {
         wasm: isBrowser ? browserArtifactPath("wasm") : nodeArtifactPath("wasm"),

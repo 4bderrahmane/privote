@@ -20,6 +20,7 @@ import LogoutPage from "@/auth/components/LogoutPage";
 import AdminDashboard from "../shared/components/AdminDashboard";
 import CitizenDashboard from "../shared/components/CitizenDashboard";
 import CreateElection from "../shared/components/CreateElection";
+import ElectionDetails from "../shared/components/ElectionDetails";
 import ChooseRole from "../shared/components/ChooseRole";
 import DashboardRedirect from "../shared/components/DashboardRedirect";
 import NotFoundPage from "../shared/components/NotFoundPage";
@@ -52,7 +53,9 @@ const router = createBrowserRouter([
             {
                 path: "/dashboard",
                 element: <RequireAuth />,
-                children: [{ index: true, element: <DashboardRedirect /> }],
+                children: [
+                    { index: true, element: <DashboardRedirect /> },
+                ],
             },
 
             {
@@ -64,19 +67,25 @@ const router = createBrowserRouter([
             {
                 path: "/elections",
                 element: <RequireAuth />,
-                children: [{ index: true, element: <RoleRouteRedirect target="elections" /> }],
+                children: [
+                    { index: true, element: <RoleRouteRedirect target="elections" /> },
+                ],
             },
 
             {
                 path: "/results",
                 element: <RequireAuth />,
-                children: [{ index: true, element: <RoleRouteRedirect target="results" /> }],
+                children: [
+                    { index: true, element: <RoleRouteRedirect target="results" /> },
+                ],
             },
 
             {
                 path: "/my-votes",
                 element: <RequireAuth />,
-                children: [{ index: true, element: <RoleRouteRedirect target="my-votes" /> }],
+                children: [
+                    { index: true, element: <RoleRouteRedirect target="my-votes" /> },
+                ],
             },
 
             {
@@ -96,6 +105,7 @@ const router = createBrowserRouter([
                                             { path: "dashboard", element: <AdminDashboard /> },
                                             { path: "elections", element: <Elections /> },
                                             { path: "elections/create", element: <CreateElection /> },
+                                            { path: "elections/:electionId", element: <ElectionDetails /> },
                                             { path: "parties", element: <Parties /> },
                                             { path: "results", element: <Results /> },
                                             { path: "*", element: <NotFoundPage /> },
@@ -124,6 +134,7 @@ const router = createBrowserRouter([
                                             { index: true, element: <Navigate to="dashboard" replace /> },
                                             { path: "dashboard", element: <CitizenDashboard /> },
                                             { path: "elections", element: <Elections /> },
+                                            { path: "elections/:electionId", element: <ElectionDetails /> },
                                             { path: "results", element: <Results /> },
                                             { path: "my-votes", element: <MyVotes /> },
                                             { path: "*", element: <NotFoundPage /> },
