@@ -15,6 +15,12 @@ export async function migrate() {
             last_processed_block_hash TEXT
         );
 
+        ALTER TABLE sync_state
+            ADD COLUMN IF NOT EXISTS last_processed_log_index BIGINT NOT NULL DEFAULT -1;
+
+        ALTER TABLE sync_state
+            ADD COLUMN IF NOT EXISTS last_processed_block_hash TEXT;
+
         CREATE TABLE IF NOT EXISTS members
         (
             election_address    TEXT   NOT NULL,
