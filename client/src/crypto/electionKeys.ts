@@ -51,8 +51,8 @@ const PAYLOAD_HEADER_V2_BYTES = PAYLOAD_HEADER_V1_BYTES + PAYLOAD_CONTEXT_HASH_B
 export type VaultSecretMode = "PASSWORD_ONLY" | "PASSWORD_PLUS_CUSTODY_SECRET";
 
 export type VaultCustodyOptions = {
-    // Prefer Uint8Array for custodySecret when possible, so temporary copies can be wiped.
-    // JS strings are immutable and cannot be zeroized.
+    // Use Uint8Array when possible so custody secret bytes can be wiped.
+    // String values are immutable in JS and cannot be zeroized.
     custodySecret?: string | Uint8Array;
 };
 
@@ -112,7 +112,7 @@ function assertWebCrypto(): Crypto {
     return cryptoApi;
 }
 
-function assertPassword(password: string): void {
+function assertPassword(password: unknown): void {
     if (typeof password !== "string" || password.length < ELECTION_VAULT_MIN_PASSWORD_LENGTH) {
         throw new Error(
             `Password must be at least ${ELECTION_VAULT_MIN_PASSWORD_LENGTH} characters long. ` +
@@ -192,7 +192,7 @@ function bytesToHex(bytes: Uint8Array): string {
 }
 
 function hexToBytes(hex: string): Uint8Array {
-    const normalized = hex.trim().replace(/^0x/i, "").replace(/\s+/g, "");
+    const normalized = hex.trim().replace(/^0x/i, "").replaceAll(/\s+/g, "");
     if (!/^[0-9a-fA-F]+$/.test(normalized)) {
         throw new Error("Expected a hexadecimal string.");
     }
@@ -217,7 +217,7 @@ function base64Encode(bytes: Uint8Array): string {
     return Buffer.from(bytes).toString("base64");
 }
 
-function base64DecodeStrict(value: string, label: string): Uint8Array {
+function base64DecodeStrict(value: unknown, label: string): Uint8Array {
     if (typeof value !== "string" || value.length === 0) {
         throw new Error(`${label} must be a non-empty base64 string.`);
     }
@@ -236,7 +236,11 @@ function base64DecodeStrict(value: string, label: string): Uint8Array {
 
         out = new Uint8Array(binary.length);
         for (let index = 0; index < binary.length; index += 1) {
-            out[index] = binary.charCodeAt(index);
+            const codePoint = binary.codePointAt(index);
+            if (codePoint === undefined || codePoint > 0xff) {
+                throw new Error(`${label} contains invalid binary data.`);
+            }
+            out[index] = codePoint;
         }
     } else {
         try {
@@ -315,14 +319,13 @@ function buildVaultAad(vault: ElectionKeyVault): Uint8Array {
     ];
 
     if (vault.wrapping.kdf.name === CURRENT_VAULT_KDF) {
-        aadFields.push(["kdfMemoryKiB", String(vault.wrapping.kdf.memoryKiB)]);
-        aadFields.push(["kdfParallelism", String(vault.wrapping.kdf.parallelism)]);
+        aadFields.push(["kdfMemoryKiB", String(vault.wrapping.kdf.memoryKiB)], ["kdfParallelism", String(vault.wrapping.kdf.parallelism)]);
     }
 
     return buildStructuredAad(VAULT_AAD_V2_LABEL, aadFields);
 }
 
-function normalizeCustodySecret(secret: string | Uint8Array | undefined): Uint8Array {
+function normalizeCustodySecret(secret: unknown): Uint8Array {
     if (secret === undefined) {
         throw new Error("Vault requires custodySecret in addition to password.");
     }
@@ -335,7 +338,7 @@ function normalizeCustodySecret(secret: string | Uint8Array | undefined): Uint8A
     }
 
     if (!(secret instanceof Uint8Array)) {
-        throw new Error("custodySecret must be a string or Uint8Array.");
+        throw new TypeError("custodySecret must be a string or Uint8Array.");
     }
     if (secret.length === 0) {
         throw new Error("custodySecret must not be empty.");
@@ -353,8 +356,7 @@ async function deriveWrappingKey(
     const cryptoApi = assertWebCrypto();
     assertVaultKdf(kdf);
 
-    // Password strings themselves remain in JS-managed immutable memory.
-    // We wipe only this transient UTF-8 copy.
+    // We can wipe this temporary UTF-8 buffer, not the original JS string.
     const passwordBytes = textEncoder.encode(password);
     let baseKeyBytes: Uint8Array | undefined;
     let mixedKeyBytes: Uint8Array | undefined;
@@ -382,8 +384,7 @@ async function deriveWrappingKey(
                 )
             );
         } else {
-            // Noble Argon2id is pure JS: good for memory hardness in-browser, but not equivalent
-            // to native/high-assurance Argon2 deployments.
+            // Argon2id runs in JS here; behavior and assurances differ from native Argon2 implementations.
             baseKeyBytes = argon2id(passwordBytes, salt, {
                 t: kdf.iterations,
                 m: kdf.memoryKiB,
@@ -734,8 +735,8 @@ export async function createElectionKeyVault(
 }
 
 /**
- * Compatibility API.
- * Prefer unlockElectionPrivateKeyAsCryptoKey() to avoid handling raw secret bytes in application code.
+ * Legacy helper that returns raw PKCS#8 bytes.
+ * Prefer unlockElectionPrivateKeyAsCryptoKey() to keep key material inside Web Crypto.
  */
 export async function unlockElectionPrivateKey(
     password: string,
@@ -848,6 +849,21 @@ type PayloadEncryptionMode =
     | { kind: "legacy" }
     | { kind: "context-bound"; context: NormalizedElectionPayloadContext };
 
+type ParsedPayloadEnvelope = {
+    version: number;
+    header: Uint8Array;
+    ephemeralPublicKeyRaw: Uint8Array;
+    salt: Uint8Array;
+    iv: Uint8Array;
+    body: Uint8Array;
+};
+
+type DecryptionContextResolution = {
+    payloadInfo: Uint8Array;
+    contextHash?: Uint8Array;
+    expectedContextHash?: Uint8Array;
+};
+
 async function encryptElectionPayloadInternal(
     plaintext: Uint8Array | string,
     electionPublicKeyHex: string,
@@ -927,8 +943,8 @@ export async function encryptElectionPayload(
 }
 
 /**
- * Compatibility API for legacy payload format v1.
- * Use encryptElectionPayload() for mandatory context-bound payloads.
+ * Legacy payload format (v1) kept for backward compatibility.
+ * New code should use encryptElectionPayload().
  */
 export async function encryptElectionPayloadLegacy(
     plaintext: Uint8Array | string,
@@ -937,37 +953,76 @@ export async function encryptElectionPayloadLegacy(
     return encryptElectionPayloadInternal(plaintext, electionPublicKeyHex, { kind: "legacy" });
 }
 
-async function decryptElectionPayloadInternal(
-    ciphertext: Uint8Array,
-    privateKeyInput: Uint8Array | CryptoKey,
-    context: ElectionPayloadContext | undefined,
-    allowLegacyPayload: boolean
-): Promise<Uint8Array> {
+function parsePayloadEnvelope(ciphertext: Uint8Array, allowLegacyPayload: boolean): ParsedPayloadEnvelope {
     if (ciphertext.length <= PAYLOAD_HEADER_V1_BYTES + AES_GCM_TAG_BYTES) {
         throw new Error("Ciphertext is too short.");
     }
 
     const version = ciphertext[0];
-    if (version !== PAYLOAD_VERSION_LEGACY && version !== PAYLOAD_VERSION_CONTEXT_BOUND) {
+    const isLegacy = version === PAYLOAD_VERSION_LEGACY;
+    const isContextBound = version === PAYLOAD_VERSION_CONTEXT_BOUND;
+    if (!isLegacy && !isContextBound) {
         throw new Error(`Unsupported encrypted payload version: ${version}`);
     }
-    if (version === PAYLOAD_VERSION_LEGACY && !allowLegacyPayload) {
+    if (isLegacy && !allowLegacyPayload) {
         throw new Error(
             "Legacy payload v1 is disabled in strict mode. " +
             "Use decryptElectionPayloadLegacy() for compatibility."
         );
     }
 
-    const headerLength = version === PAYLOAD_VERSION_CONTEXT_BOUND ? PAYLOAD_HEADER_V2_BYTES : PAYLOAD_HEADER_V1_BYTES;
+    const headerLength = isContextBound ? PAYLOAD_HEADER_V2_BYTES : PAYLOAD_HEADER_V1_BYTES;
     if (ciphertext.length <= headerLength + AES_GCM_TAG_BYTES) {
         throw new Error("Ciphertext is too short.");
     }
 
-    const header = ciphertext.slice(0, headerLength);
-    const ephemeralPublicKeyRaw = ciphertext.slice(1, 1 + X25519_PUBLIC_KEY_BYTES);
-    const salt = ciphertext.slice(1 + X25519_PUBLIC_KEY_BYTES, 1 + X25519_PUBLIC_KEY_BYTES + PAYLOAD_SALT_BYTES);
-    const iv = ciphertext.slice(1 + X25519_PUBLIC_KEY_BYTES + PAYLOAD_SALT_BYTES, PAYLOAD_HEADER_V1_BYTES);
-    const body = ciphertext.slice(headerLength);
+    return {
+        version,
+        header: ciphertext.slice(0, headerLength),
+        ephemeralPublicKeyRaw: ciphertext.slice(1, 1 + X25519_PUBLIC_KEY_BYTES),
+        salt: ciphertext.slice(1 + X25519_PUBLIC_KEY_BYTES, 1 + X25519_PUBLIC_KEY_BYTES + PAYLOAD_SALT_BYTES),
+        iv: ciphertext.slice(1 + X25519_PUBLIC_KEY_BYTES + PAYLOAD_SALT_BYTES, PAYLOAD_HEADER_V1_BYTES),
+        body: ciphertext.slice(headerLength),
+    };
+}
+
+async function resolveDecryptionContext(
+    version: number,
+    ciphertext: Uint8Array,
+    context: ElectionPayloadContext | undefined
+): Promise<DecryptionContextResolution> {
+    if (version !== PAYLOAD_VERSION_CONTEXT_BOUND) {
+        return { payloadInfo: PAYLOAD_INFO_V1 };
+    }
+
+    if (!context) {
+        throw new Error("Context is required to decrypt version 2 payloads.");
+    }
+
+    const contextHash = ciphertext.slice(PAYLOAD_HEADER_V1_BYTES, PAYLOAD_HEADER_V2_BYTES);
+    if (contextHash.length !== PAYLOAD_CONTEXT_HASH_BYTES) {
+        throw new Error("Invalid payload context hash length.");
+    }
+
+    const expectedContextHash = await hashPayloadContext(normalizePayloadContext(context));
+    if (!constantTimeEqual(contextHash, expectedContextHash)) {
+        throw new Error("Encrypted payload context mismatch.");
+    }
+
+    return {
+        payloadInfo: buildPayloadInfoV2(contextHash),
+        contextHash,
+        expectedContextHash,
+    };
+}
+
+async function decryptElectionPayloadInternal(
+    ciphertext: Uint8Array,
+    privateKeyInput: Uint8Array | CryptoKey,
+    context: ElectionPayloadContext | undefined,
+    allowLegacyPayload: boolean
+): Promise<Uint8Array> {
+    const envelope = parsePayloadEnvelope(ciphertext, allowLegacyPayload);
 
     let payloadInfo: Uint8Array = PAYLOAD_INFO_V1;
     let contextHash: Uint8Array | undefined;
@@ -982,26 +1037,14 @@ async function decryptElectionPayloadInternal(
 
     let sharedSecret: Uint8Array | undefined;
     try {
-        if (version === PAYLOAD_VERSION_CONTEXT_BOUND) {
-            if (!context) {
-                throw new Error("Context is required to decrypt version 2 payloads.");
-            }
-
-            contextHash = ciphertext.slice(PAYLOAD_HEADER_V1_BYTES, PAYLOAD_HEADER_V2_BYTES);
-            if (contextHash.length !== PAYLOAD_CONTEXT_HASH_BYTES) {
-                throw new Error("Invalid payload context hash length.");
-            }
-
-            expectedContextHash = await hashPayloadContext(normalizePayloadContext(context));
-            if (!constantTimeEqual(contextHash, expectedContextHash)) {
-                throw new Error("Encrypted payload context mismatch.");
-            }
-            payloadInfo = buildPayloadInfoV2(contextHash);
-        }
+        const decryptionContext = await resolveDecryptionContext(envelope.version, ciphertext, context);
+        payloadInfo = decryptionContext.payloadInfo;
+        contextHash = decryptionContext.contextHash;
+        expectedContextHash = decryptionContext.expectedContextHash;
 
         const publicKey = await cryptoApi.subtle.importKey(
             "raw",
-            asBufferSource(ephemeralPublicKeyRaw),
+            asBufferSource(envelope.ephemeralPublicKeyRaw),
             { name: "X25519" },
             false,
             []
@@ -1016,15 +1059,15 @@ async function decryptElectionPayloadInternal(
         );
         assertSharedSecretIsNonZero(sharedSecret);
 
-        const payloadKey = await derivePayloadKey(sharedSecret, salt, payloadInfo);
+        const payloadKey = await derivePayloadKey(sharedSecret, envelope.salt, payloadInfo);
         const plaintext = await cryptoApi.subtle.decrypt(
             {
                 name: "AES-GCM",
-                iv: asBufferSource(iv),
-                additionalData: asBufferSource(header),
+                iv: asBufferSource(envelope.iv),
+                additionalData: asBufferSource(envelope.header),
             },
             payloadKey,
-            asBufferSource(body)
+            asBufferSource(envelope.body)
         );
 
         return new Uint8Array(plaintext);
@@ -1035,9 +1078,9 @@ async function decryptElectionPayloadInternal(
         throw new Error("Failed to decrypt election payload.");
     } finally {
         wipeBytes(sharedSecret);
-        wipeBytes(ephemeralPublicKeyRaw);
-        wipeBytes(salt);
-        wipeBytes(iv);
+        wipeBytes(envelope.ephemeralPublicKeyRaw);
+        wipeBytes(envelope.salt);
+        wipeBytes(envelope.iv);
         wipeBytes(contextHash);
         wipeBytes(expectedContextHash);
         if (payloadInfo !== PAYLOAD_INFO_V1) {
@@ -1055,8 +1098,8 @@ export async function decryptElectionPayload(
 }
 
 /**
- * Compatibility API for legacy payload format v1.
- * Prefer decryptElectionPayload() with context-bound payloads.
+ * Legacy payload format (v1) kept for backward compatibility.
+ * New code should use decryptElectionPayload().
  */
 export async function decryptElectionPayloadLegacy(
     ciphertext: Uint8Array,
@@ -1067,6 +1110,14 @@ export async function decryptElectionPayloadLegacy(
 
 function isObject(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
+}
+
+function requireStringField(record: Record<string, unknown>, fieldName: string): string {
+    const value = record[fieldName];
+    if (typeof value !== "string") {
+        throw new TypeError(`Backup ${fieldName} must be a string.`);
+    }
+    return value;
 }
 
 export function parseStoredElectionKeyVault(json: string): StoredElectionKeyVault {
@@ -1082,10 +1133,10 @@ export function parseStoredElectionKeyVault(json: string): StoredElectionKeyVaul
     }
 
     const record: StoredElectionKeyVault = {
-        electionPublicId: normalizeUuid(String(parsed.electionPublicId ?? ""), "electionPublicId"),
+        electionPublicId: normalizeUuid(requireStringField(parsed, "electionPublicId"), "electionPublicId"),
         electionTitle: typeof parsed.electionTitle === "string" ? parsed.electionTitle : undefined,
-        createdAt: String(parsed.createdAt ?? ""),
-        publicKeyHex: String(parsed.publicKeyHex ?? "").toLowerCase(),
+        createdAt: requireStringField(parsed, "createdAt"),
+        publicKeyHex: requireStringField(parsed, "publicKeyHex").toLowerCase(),
         vault: parsed.vault as ElectionKeyVault,
     };
 
@@ -1094,7 +1145,7 @@ export function parseStoredElectionKeyVault(json: string): StoredElectionKeyVaul
     }
 
     if (Number.isNaN(Date.parse(record.createdAt))) {
-        throw new Error("Backup createdAt must be a valid ISO timestamp.");
+        throw new TypeError("Backup createdAt must be a valid ISO timestamp.");
     }
 
     validateVault(record.vault);
