@@ -3,7 +3,7 @@ import { initReactI18next } from 'react-i18next';
 import HttpBackend from 'i18next-http-backend';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
-const localeVersion = import.meta.env.DEV ? String(Date.now()) : '2';
+const localeVersion = String(import.meta.env.VITE_LOCALE_VERSION ?? Date.now());
 
 i18n
     .use(HttpBackend)
