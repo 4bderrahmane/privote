@@ -254,8 +254,6 @@ pnpm build
 
 ## Next Steps
 
-- Complete production-grade result publication and tally dashboards
-- Improve evaluator onboarding with a one-command demo bootstrap
-- Add a portable environment template for all services
-- Replace remaining placeholder presentation screens with live data
-- Add architecture and workflow visuals for submissions and jury demos
+- Decentralize the tally with a 3-of-5 threshold decryption scheme so any 3 coordinators can combine their private key shares to decrypt and reveal the election private key
+- Strengthen the existing tally and result publication dashboard into a production-grade workflow
+- Add a portable environment template and one-command demo bootstrap for all services
