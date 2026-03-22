@@ -274,6 +274,46 @@
     margin-top: 14px;
 }
 
+.election-details-card .primary-button {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #1c619d 0%, #0f4c81 100%);
+    color: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(15, 76, 129, 0.22);
+    transition: background 160ms ease, box-shadow 160ms ease, transform 120ms ease, opacity 160ms ease;
+}
+
+.election-details-card .primary-button:hover:not(:disabled) {
+    background: linear-gradient(180deg, #225f95 0%, #0d406c 100%);
+    box-shadow: 0 10px 22px rgba(15, 76, 129, 0.28);
+    transform: translateY(-1px);
+}
+
+.election-details-card .primary-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.election-details-card .primary-button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.24), 0 8px 20px rgba(15, 76, 129, 0.22);
+}
+
+.election-details-card .primary-button:disabled {
+    opacity: 0.58;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
 .election-candidate-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

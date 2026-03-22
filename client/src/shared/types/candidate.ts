@@ -14,3 +14,22 @@ export type CreateCandidateByCinInput = {
     partyPublicId?: string;
     status?: CandidateStatus;
 };
+
+export type CandidateForm = {
+    citizenCin: string;
+    partyPublicId: string;
+    status: CandidateStatus;
+};
+
+export const INITIAL_CANDIDATE_FORM: CandidateForm = {
+    citizenCin: "",
+    partyPublicId: "",
+    status: "ACTIVE",
+};
+
+export const STATUS_ORDER: Record<CandidateStatus, number> = {
+    ACTIVE: 0,
+    PENDING_APPROVAL: 1,
+    WITHDRAWN: 2,
+    DISQUALIFIED: 3,
+};

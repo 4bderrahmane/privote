@@ -1,38 +1,28 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/auth/useAuth.ts";
-import { getAllElections, electionManagement } from "../services/ElectionService";
-import { loadMyVoteReceipts, type StoredVoteReceipt } from "../services/MyVoteReceiptStorage";
-import { getMyRegistrationByElectionPublicId } from "../services/VoterRegistrationService";
+import { getAllElections, electionManagement } from "@services/ElectionService";
+import { loadMyVoteReceipts, type StoredVoteReceipt } from "@services/MyVoteReceiptStorage";
+import { getMyRegistrationByElectionPublicId } from "@services/VoterRegistrationService";
 
 import "../styles/Dashboard.css";
 import "../styles/MyVotes.css";
 import { useSuccessToast } from "../hooks/useSuccessToast";
+import type {VoteRecord} from "@shared-types/vote.ts";
 
-type VoteRecord = {
-    id: string;
-    electionId: string;
-    electionName: string;
-    votedAt?: string | null;
-    transactionHash?: string | null;
-    ciphertextHash?: string | null;
-    nullifier?: string | null;
-    blockNumber?: number | null;
-    status: "confirmed" | "recorded";
-    receiptAvailable: boolean;
-};
 
-function formatDate(value?: string | null): string {
+function formatDate(value: string | null | undefined, locale: string, unavailableLabel: string): string {
     if (!value) {
-        return "Not available on this browser";
+        return unavailableLabel;
     }
 
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
-        return "Not available on this browser";
+        return unavailableLabel;
     }
 
-    return parsed.toLocaleDateString("en-US", {
+    return parsed.toLocaleDateString(locale, {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -41,9 +31,9 @@ function formatDate(value?: string | null): string {
     });
 }
 
-function truncateHash(hash?: string | null): string {
+function truncateHash(hash: string | null | undefined, unavailableLabel: string): string {
     if (!hash) {
-        return "Not available";
+        return unavailableLabel;
     }
 
     if (hash.length <= 20) {
@@ -69,6 +59,7 @@ function buildConfirmedRecord(receipt: StoredVoteReceipt): VoteRecord {
 }
 
 const MyVotes: React.FC = () => {
+    const { t, i18n } = useTranslation("dashboard");
     const auth = useAuth();
     const { showSuccessToast } = useSuccessToast();
     const userId = auth.status === "authenticated" ? auth.user.id : null;
@@ -76,11 +67,15 @@ const MyVotes: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState("");
 
+    const locale = i18n.resolvedLanguage || i18n.language || "en";
+    const notAvailable = t("myVotesPage.values.notAvailable");
+    const notAvailableOnBrowser = t("myVotesPage.values.notAvailableOnBrowser");
+    const transactionHashLabel = t("myVotesPage.labels.transactionHash");
+    const ciphertextHashLabel = t("myVotesPage.labels.ciphertextHash");
+    const nullifierLabel = t("myVotesPage.labels.nullifier");
+
     useEffect(() => {
         if (!userId) {
-            setRecords([]);
-            setLoadError("");
-            setLoading(false);
             return;
         }
 
@@ -115,7 +110,7 @@ const MyVotes: React.FC = () => {
                     }
 
                     const { election, registration } = result.value;
-                    if (!registration || registration.participationStatus !== "CAST") {
+                    if (registration?.participationStatus !== "CAST") {
                         continue;
                     }
 
@@ -145,7 +140,7 @@ const MyVotes: React.FC = () => {
                     setLoadError(
                         electionManagement.asErrorMessage(
                             error,
-                            "Unable to load your vote history right now."
+                            t("myVotesPage.messages.loadFailed")
                         )
                     );
                 }
@@ -170,15 +165,16 @@ const MyVotes: React.FC = () => {
         return () => {
             cancelled = true;
         };
-    }, [userId]);
+    }, [userId, t]);
 
-    const subtitle = useMemo(() => {
-        if (records.length === 0) {
-            return "Confirmed election participations and locally saved ballot receipts will appear here.";
-        }
+    const displayedRecords = userId ? records : [];
+    const displayedLoading = userId ? loading : false;
+    const displayedLoadError = userId ? loadError : "";
 
-        return "This page shows the elections you have already voted in. Full ballot receipts are available on the browser where the vote was submitted.";
-    }, [records.length]);
+    const subtitle =
+        displayedRecords.length === 0
+            ? t("myVotesPage.subtitleEmpty")
+            : t("myVotesPage.subtitleWithRecords");
 
     const copyToClipboard = async (label: string, text?: string | null) => {
         if (!text) {
@@ -187,124 +183,136 @@ const MyVotes: React.FC = () => {
 
         try {
             await navigator.clipboard.writeText(text);
-            showSuccessToast(`${label} copied to clipboard.`);
+            showSuccessToast(t("myVotesPage.messages.copied", { label }));
         } catch (error) {
             console.error("Failed to copy value:", error);
-            showSuccessToast(`Unable to copy ${label.toLowerCase()}.`, 3000, "error");
+            showSuccessToast(t("myVotesPage.messages.copyFailed", { label }), 3000, "error");
         }
     };
+
+    let content: React.ReactNode;
+    if (displayedLoading) {
+        content = (
+            <div className="dashboard-status" style={{ paddingTop: 0 }}>
+                <div style={{ color: "#6b7280" }}>{t("myVotesPage.state.loading")}</div>
+            </div>
+        );
+    } else if (displayedLoadError) {
+        content = (
+            <div className="dashboard-status" style={{ paddingTop: 0 }}>
+                <div style={{ color: "#b42318" }}>{displayedLoadError}</div>
+            </div>
+        );
+    } else if (displayedRecords.length === 0) {
+        content = (
+            <div className="dashboard-status" style={{ paddingTop: 0 }}>
+                <div style={{ color: "#6b7280" }}>{t("myVotesPage.state.empty")}</div>
+            </div>
+        );
+    } else {
+        content = (
+            <div className="myvotes-list">
+                {displayedRecords.map((vote) => (
+                    <div key={vote.id} className="myvotes-item">
+                        <div className="myvotes-item-header">
+                            <div>
+                                <h3 className="myvotes-election-name">{vote.electionName}</h3>
+                                <Link className="myvotes-election-link" to={`/citizen/elections/${vote.electionId}`}>
+                                    {t("myVotesPage.actions.openElection")}
+                                </Link>
+                            </div>
+                            <span className={`myvotes-status myvotes-status--${vote.status}`}>
+                                {vote.status === "confirmed"
+                                    ? t("myVotesPage.status.confirmed")
+                                    : t("myVotesPage.status.recorded")}
+                            </span>
+                        </div>
+
+                        <div className="myvotes-item-details">
+                            <div className="myvotes-detail-row">
+                                <span className="myvotes-label">{t("myVotesPage.labels.voted")}:</span>
+                                <span className="myvotes-value">{formatDate(vote.votedAt, locale, notAvailableOnBrowser)}</span>
+                            </div>
+
+                            <div className="myvotes-detail-row">
+                                <span className="myvotes-label">{t("myVotesPage.labels.transaction")}:</span>
+                                <div className="myvotes-hash-container">
+                                    <code className="myvotes-hash" title={vote.transactionHash ?? undefined}>
+                                        {truncateHash(vote.transactionHash, notAvailable)}
+                                    </code>
+                                    {vote.transactionHash ? (
+                                        <button
+                                            className="myvotes-copy-btn"
+                                            onClick={() => void copyToClipboard(transactionHashLabel, vote.transactionHash)}
+                                            title={t("myVotesPage.actions.copyTransactionHash")}
+                                        >
+                                            {t("myVotesPage.actions.copy")}
+                                        </button>
+                                    ) : null}
+                                </div>
+                            </div>
+
+                            <div className="myvotes-detail-row">
+                                <span className="myvotes-label">{t("myVotesPage.labels.ciphertext")}:</span>
+                                <div className="myvotes-hash-container">
+                                    <code className="myvotes-hash" title={vote.ciphertextHash ?? undefined}>
+                                        {truncateHash(vote.ciphertextHash, notAvailable)}
+                                    </code>
+                                    {vote.ciphertextHash ? (
+                                        <button
+                                            className="myvotes-copy-btn"
+                                            onClick={() => void copyToClipboard(ciphertextHashLabel, vote.ciphertextHash)}
+                                            title={t("myVotesPage.actions.copyCiphertextHash")}
+                                        >
+                                            {t("myVotesPage.actions.copy")}
+                                        </button>
+                                    ) : null}
+                                </div>
+                            </div>
+
+                            <div className="myvotes-detail-row">
+                                <span className="myvotes-label">{t("myVotesPage.labels.nullifier")}:</span>
+                                <div className="myvotes-hash-container">
+                                    <code className="myvotes-hash" title={vote.nullifier ?? undefined}>
+                                        {truncateHash(vote.nullifier, notAvailable)}
+                                    </code>
+                                    {vote.nullifier ? (
+                                        <button
+                                            className="myvotes-copy-btn"
+                                            onClick={() => void copyToClipboard(nullifierLabel, vote.nullifier)}
+                                            title={t("myVotesPage.actions.copyNullifier")}
+                                        >
+                                            {t("myVotesPage.actions.copy")}
+                                        </button>
+                                    ) : null}
+                                </div>
+                            </div>
+
+                            <div className="myvotes-detail-row">
+                                <span className="myvotes-label">{t("myVotesPage.labels.block")}:</span>
+                                <span className="myvotes-value">
+                                    {typeof vote.blockNumber === "number" ? vote.blockNumber.toLocaleString(locale) : notAvailable}
+                                </span>
+                            </div>
+                        </div>
+
+                        {vote.receiptAvailable ? null : (
+                            <div className="myvotes-note">
+                                {t("myVotesPage.messages.receiptLocalOnly")}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        );
+    }
 
     return (
         <div className="dashboard-page">
             <div className="dashboard-card myvotes-card">
-                <h2 className="dashboard-title">My Votes</h2>
+                <h2 className="dashboard-title">{t("myVotesPage.title")}</h2>
                 <p className="dashboard-subtitle">{subtitle}</p>
-
-                {loading ? (
-                    <div className="dashboard-status" style={{ paddingTop: 0 }}>
-                        <div style={{ color: "#6b7280" }}>Loading your vote history...</div>
-                    </div>
-                ) : loadError ? (
-                    <div className="dashboard-status" style={{ paddingTop: 0 }}>
-                        <div style={{ color: "#b42318" }}>{loadError}</div>
-                    </div>
-                ) : records.length === 0 ? (
-                    <div className="dashboard-status" style={{ paddingTop: 0 }}>
-                        <div style={{ color: "#6b7280" }}>No vote records were found for this account yet.</div>
-                    </div>
-                ) : (
-                    <div className="myvotes-list">
-                        {records.map((vote) => (
-                            <div key={vote.id} className="myvotes-item">
-                                <div className="myvotes-item-header">
-                                    <div>
-                                        <h3 className="myvotes-election-name">{vote.electionName}</h3>
-                                        <Link className="myvotes-election-link" to={`/citizen/elections/${vote.electionId}`}>
-                                            Open election
-                                        </Link>
-                                    </div>
-                                    <span className={`myvotes-status myvotes-status--${vote.status}`}>
-                                        {vote.status === "confirmed" ? "Confirmed receipt" : "Recorded participation"}
-                                    </span>
-                                </div>
-
-                                <div className="myvotes-item-details">
-                                    <div className="myvotes-detail-row">
-                                        <span className="myvotes-label">Voted:</span>
-                                        <span className="myvotes-value">{formatDate(vote.votedAt)}</span>
-                                    </div>
-
-                                    <div className="myvotes-detail-row">
-                                        <span className="myvotes-label">Transaction:</span>
-                                        <div className="myvotes-hash-container">
-                                            <code className="myvotes-hash" title={vote.transactionHash ?? undefined}>
-                                                {truncateHash(vote.transactionHash)}
-                                            </code>
-                                            {vote.transactionHash ? (
-                                                <button
-                                                    className="myvotes-copy-btn"
-                                                    onClick={() => void copyToClipboard("Transaction hash", vote.transactionHash)}
-                                                    title="Copy full transaction hash"
-                                                >
-                                                    Copy
-                                                </button>
-                                            ) : null}
-                                        </div>
-                                    </div>
-
-                                    <div className="myvotes-detail-row">
-                                        <span className="myvotes-label">Ciphertext:</span>
-                                        <div className="myvotes-hash-container">
-                                            <code className="myvotes-hash" title={vote.ciphertextHash ?? undefined}>
-                                                {truncateHash(vote.ciphertextHash)}
-                                            </code>
-                                            {vote.ciphertextHash ? (
-                                                <button
-                                                    className="myvotes-copy-btn"
-                                                    onClick={() => void copyToClipboard("Ciphertext hash", vote.ciphertextHash)}
-                                                    title="Copy full ciphertext hash"
-                                                >
-                                                    Copy
-                                                </button>
-                                            ) : null}
-                                        </div>
-                                    </div>
-
-                                    <div className="myvotes-detail-row">
-                                        <span className="myvotes-label">Nullifier:</span>
-                                        <div className="myvotes-hash-container">
-                                            <code className="myvotes-hash" title={vote.nullifier ?? undefined}>
-                                                {truncateHash(vote.nullifier)}
-                                            </code>
-                                            {vote.nullifier ? (
-                                                <button
-                                                    className="myvotes-copy-btn"
-                                                    onClick={() => void copyToClipboard("Nullifier", vote.nullifier)}
-                                                    title="Copy full nullifier"
-                                                >
-                                                    Copy
-                                                </button>
-                                            ) : null}
-                                        </div>
-                                    </div>
-
-                                    <div className="myvotes-detail-row">
-                                        <span className="myvotes-label">Block:</span>
-                                        <span className="myvotes-value">
-                                            {typeof vote.blockNumber === "number" ? vote.blockNumber.toLocaleString("en-US") : "Not available"}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {!vote.receiptAvailable ? (
-                                    <div className="myvotes-note">
-                                        A vote was recorded for this election, but the full ballot receipt is only available on the browser where the ballot was submitted.
-                                    </div>
-                                ) : null}
-                            </div>
-                        ))}
-                    </div>
-                )}
+                {content}
             </div>
         </div>
     );

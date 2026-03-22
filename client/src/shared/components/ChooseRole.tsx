@@ -34,8 +34,8 @@ export default function ChooseRole() {
     };
 
     return (
-        <div className="dashboard-page">
-            <div className="dashboard-card">
+        <div className="dashboard-page dashboard-page-role">
+            <div className="dashboard-card dashboard-card-role">
                 <h2 className="dashboard-title">{t("chooseRole.title")}</h2>
                 <p className="dashboard-subtitle">{t("chooseRole.subtitle")}</p>
 

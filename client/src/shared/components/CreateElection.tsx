@@ -1,49 +1,25 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { MdBackspace } from "react-icons/md";
-import { useSuccessToast } from "../hooks/useSuccessToast";
-import { useAuth } from "@/auth/useAuth.ts";
-import { createElection, electionManagement } from "../services/ElectionService";
+import {type ChangeEvent, type FormEvent, useState} from "react";
+import {Link, useNavigate} from "react-router-dom";
+import {useTranslation} from "react-i18next";
+import {MdBackspace} from "react-icons/md";
+import {useSuccessToast} from "../hooks/useSuccessToast";
+import {useAuth} from "@/auth/useAuth.ts";
+import {createElection, electionManagement} from "@services/ElectionService";
 import {
     createElectionKeyVault,
     createStoredElectionKeyVault,
     ELECTION_VAULT_MIN_PASSWORD_LENGTH,
 } from "@/crypto/electionKeys";
-import {
-    downloadElectionKeyVaultBackup,
-    saveElectionKeyVault,
-} from "@/crypto/electionKeyVaultStorage";
+import {downloadElectionKeyVaultBackup, saveElectionKeyVault,} from "@/crypto/electionKeyVaultStorage";
 import "../styles/CreateElection.css";
+import {INITIAL_FORM} from "@/shared/types";
 
-type CreateElectionForm = {
-    title: string;
-    description: string;
-    startDate: string;
-    startClock: string;
-    endDate: string;
-    endClock: string;
-    vaultPassword: string;
-    confirmVaultPassword: string;
-};
 
-const INITIAL_FORM: CreateElectionForm = {
-    title: "",
-    description: "",
-    startDate: "",
-    startClock: "09:00",
-    endDate: "",
-    endClock: "18:00",
-    vaultPassword: "",
-    confirmVaultPassword: "",
-};
-
-function toIsoString(dateValue: string, timeValue: string) {
+function toIsoString(dateValue: string, safeTime = "00:00") {
     if (!dateValue) {
         return "";
     }
 
-    const safeTime = timeValue || "00:00";
     return new Date(`${dateValue}T${safeTime}`).toISOString();
 }
 
@@ -53,8 +29,8 @@ export default function CreateElection() {
     const [error, setError] = useState("");
     const auth = useAuth();
     const navigate = useNavigate();
-    const { showSuccessToast } = useSuccessToast();
-    const { t, ready } = useTranslation("elections", { keyPrefix: "create" });
+    const {showSuccessToast} = useSuccessToast();
+    const {t, ready} = useTranslation("elections", {keyPrefix: "create"});
 
     if (auth.status !== "authenticated" || !ready) {
         return null;
@@ -63,8 +39,8 @@ export default function CreateElection() {
     const handleChange = (
         event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
-        const { name, value } = event.target;
-        setForm((prev) => ({ ...prev, [name]: value }));
+        const {name, value} = event.target;
+        setForm((prev) => ({...prev, [name]: value}));
     };
 
     const handleSubmit = async (event: FormEvent) => {
@@ -72,12 +48,12 @@ export default function CreateElection() {
         setError("");
 
         if (!form.title.trim()) {
-            setError(t("errors.titleRequired", { defaultValue: "Title is required." }));
+            setError(t("errors.titleRequired", {defaultValue: "Title is required."}));
             return;
         }
 
         if (!form.endDate) {
-            setError(t("errors.endTimeRequired", { defaultValue: "End time is required." }));
+            setError(t("errors.endTimeRequired", {defaultValue: "End time is required."}));
             return;
         }
 
@@ -87,12 +63,12 @@ export default function CreateElection() {
         const endTimeIso = toIsoString(form.endDate, form.endClock);
 
         if (startTimeIso && new Date(endTimeIso) < new Date(startTimeIso)) {
-            setError(t("errors.endAfterStart", { defaultValue: "End time must be after start time." }));
+            setError(t("errors.endAfterStart", {defaultValue: "End time must be after start time."}));
             return;
         }
 
         if (!form.vaultPassword) {
-            setError(t("errors.passwordRequired", { defaultValue: "Vault password is required." }));
+            setError(t("errors.passwordRequired", {defaultValue: "Vault password is required."}));
             return;
         }
 
@@ -105,7 +81,7 @@ export default function CreateElection() {
         }
 
         if (form.vaultPassword !== form.confirmVaultPassword) {
-            setError(t("errors.passwordMismatch", { defaultValue: "Vault password confirmation does not match." }));
+            setError(t("errors.passwordMismatch", {defaultValue: "Vault password confirmation does not match."}));
             return;
         }
 
@@ -141,12 +117,12 @@ export default function CreateElection() {
                 }),
                 5000
             );
-            navigate("/admin/elections", { replace: true });
+            navigate("/admin/elections", {replace: true});
         } catch (submitError) {
             setError(
                 electionManagement.asErrorMessage(
                     submitError,
-                    t("errors.submitFailed", { defaultValue: "Unable to create election." })
+                    t("errors.submitFailed", {defaultValue: "Unable to create election."})
                 )
             );
         } finally {
@@ -159,7 +135,7 @@ export default function CreateElection() {
             <div className="create-election-card">
                 <div className="create-election-header">
                     <div>
-                        <h1 className="create-election-title">{t("title", { defaultValue: "Create election" })}</h1>
+                        <h1 className="create-election-title">{t("title", {defaultValue: "Create election"})}</h1>
                         <p className="create-election-subtitle">
                             {t("subtitle", {
                                 defaultValue: "A fresh election encryption keypair is generated in your browser. Only the public key is sent to the backend.",
@@ -168,49 +144,49 @@ export default function CreateElection() {
                     </div>
 
                     <Link to="/admin/elections" className="create-election-back">
-                        <MdBackspace className="create-election-back-icon" aria-hidden="true" />
-                        <span>{t("back", { defaultValue: "Back to elections" })}</span>
+                        <MdBackspace className="create-election-back-icon" aria-hidden="true"/>
+                        <span>{t("back", {defaultValue: "Back to elections"})}</span>
                     </Link>
                 </div>
 
                 <form className="create-election-form" onSubmit={handleSubmit}>
                     <div className="create-election-grid">
                         <label className="create-election-field">
-                            <span>{t("fields.title", { defaultValue: "Title" })}</span>
+                            <span>{t("fields.title", {defaultValue: "Title"})}</span>
                             <input
                                 name="title"
                                 value={form.title}
                                 onChange={handleChange}
-                                placeholder={t("placeholders.title", { defaultValue: "Municipal Election 2026" })}
+                                placeholder={t("placeholders.title", {defaultValue: "Municipal Election 2026"})}
                                 required
                             />
                         </label>
 
                         <label className="create-election-field">
-                            <span>{t("fields.phase", { defaultValue: "Phase" })}</span>
-                            <input value={t("phases.REGISTRATION", { defaultValue: "Registration" })} disabled />
+                            <span>{t("fields.phase", {defaultValue: "Phase"})}</span>
+                            <input value={t("phases.REGISTRATION", {defaultValue: "Registration"})} disabled/>
                         </label>
 
                         <label className="create-election-field create-election-field-wide">
-                            <span>{t("fields.description", { defaultValue: "Description" })}</span>
+                            <span>{t("fields.description", {defaultValue: "Description"})}</span>
                             <textarea
                                 name="description"
                                 value={form.description}
                                 onChange={handleChange}
-                                placeholder={t("placeholders.description", { defaultValue: "Describe the purpose and scope of this election." })}
+                                placeholder={t("placeholders.description", {defaultValue: "Describe the purpose and scope of this election."})}
                                 rows={4}
                             />
                         </label>
 
                         <label className="create-election-field">
-                            <span>{t("fields.startTime", { defaultValue: "Start time" })}</span>
+                            <span>{t("fields.startTime", {defaultValue: "Start time"})}</span>
                             <div className="create-election-date-time">
                                 <input
                                     name="startDate"
                                     type="date"
                                     value={form.startDate}
                                     onChange={handleChange}
-                                    aria-label={t("fields.startDate", { defaultValue: "Start date" })}
+                                    aria-label={t("fields.startDate", {defaultValue: "Start date"})}
                                 />
                                 <input
                                     name="startClock"
@@ -218,20 +194,20 @@ export default function CreateElection() {
                                     step={60}
                                     value={form.startClock}
                                     onChange={handleChange}
-                                    aria-label={t("fields.startClock", { defaultValue: "Start hour and minute" })}
+                                    aria-label={t("fields.startClock", {defaultValue: "Start hour and minute"})}
                                 />
                             </div>
                         </label>
 
                         <label className="create-election-field">
-                            <span>{t("fields.endTime", { defaultValue: "End time" })}</span>
+                            <span>{t("fields.endTime", {defaultValue: "End time"})}</span>
                             <div className="create-election-date-time">
                                 <input
                                     name="endDate"
                                     type="date"
                                     value={form.endDate}
                                     onChange={handleChange}
-                                    aria-label={t("fields.endDate", { defaultValue: "End date" })}
+                                    aria-label={t("fields.endDate", {defaultValue: "End date"})}
                                     required
                                 />
                                 <input
@@ -240,19 +216,19 @@ export default function CreateElection() {
                                     step={60}
                                     value={form.endClock}
                                     onChange={handleChange}
-                                    aria-label={t("fields.endClock", { defaultValue: "End hour and minute" })}
+                                    aria-label={t("fields.endClock", {defaultValue: "End hour and minute"})}
                                     required
                                 />
                             </div>
                         </label>
 
                         <label className="create-election-field">
-                            <span>{t("fields.coordinatorKeycloakId", { defaultValue: "Coordinator Keycloak ID" })}</span>
-                            <input value={auth.user.id} disabled />
+                            <span>{t("fields.coordinatorKeycloakId", {defaultValue: "Coordinator Keycloak ID"})}</span>
+                            <input value={auth.user.id} disabled/>
                         </label>
 
                         <label className="create-election-field create-election-field-wide">
-                            <span>{t("fields.vaultPassword", { defaultValue: "Vault password" })}</span>
+                            <span>{t("fields.vaultPassword", {defaultValue: "Vault password"})}</span>
                             <input
                                 name="vaultPassword"
                                 type="password"
@@ -268,7 +244,7 @@ export default function CreateElection() {
                         </label>
 
                         <label className="create-election-field create-election-field-wide">
-                            <span>{t("fields.confirmVaultPassword", { defaultValue: "Confirm vault password" })}</span>
+                            <span>{t("fields.confirmVaultPassword", {defaultValue: "Confirm vault password"})}</span>
                             <input
                                 name="confirmVaultPassword"
                                 type="password"
@@ -289,8 +265,8 @@ export default function CreateElection() {
                     <div className="create-election-actions">
                         <button type="submit" className="create-election-submit" disabled={saving}>
                             {saving
-                                ? t("submitting", { defaultValue: "Creating..." })
-                                : t("submit", { defaultValue: "Create election" })}
+                                ? t("submitting", {defaultValue: "Creating..."})
+                                : t("submit", {defaultValue: "Create election"})}
                         </button>
                     </div>
                 </form>

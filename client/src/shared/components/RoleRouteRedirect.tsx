@@ -6,7 +6,7 @@ type RoleRouteRedirectProps = {
     target: "dashboard" | "elections" | "results" | "my-votes";
 };
 
-export default function RoleRouteRedirect({ target }: RoleRouteRedirectProps) {
+export default function RoleRouteRedirect({ target }: Readonly<RoleRouteRedirectProps>) {
     const auth = useAuth();
 
     if (auth.status !== "authenticated") return null;

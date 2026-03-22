@@ -9,8 +9,8 @@ const LanguageSwitcher: React.FC = () => {
     const {i18n} = useTranslation();
 
     const languages: Language[] = [
-        {code: "en", name: "English", flag: enFlag as string},
-        {code: "fr", name: "Français", flag: frFlag as string},
+        {code: "en", name: "English", flag: enFlag},
+        {code: "fr", name: "Français", flag: frFlag},
     ];
     const [selectedLang, setSelectedLang] = useState<Language>(
         languages.find(lang => lang.code === i18n.language) || languages[0]

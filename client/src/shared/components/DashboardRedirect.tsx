@@ -1,6 +1,6 @@
-import { Navigate } from "react-router-dom";
-import { useAuth } from "@/auth/useAuth.ts";
-import { getActiveRole, getAvailableRoles, getRoleBasePath } from "@/auth/roles.ts";
+import {Navigate} from "react-router-dom";
+import {useAuth} from "@/auth/useAuth.ts";
+import {getActiveRole, getAvailableRoles, getRoleBasePath} from "@/auth/roles.ts";
 
 export default function DashboardRedirect() {
     const auth = useAuth();
@@ -11,8 +11,8 @@ export default function DashboardRedirect() {
     const activeRole = getActiveRole(auth.user);
 
     if (availableRoles.length > 1 && !activeRole) {
-        return <Navigate to="/choose-role" replace />;
+        return <Navigate to="/choose-role" replace/>;
     }
 
-    return <Navigate to={`${getRoleBasePath(activeRole ?? availableRoles[0])}/dashboard`} replace />;
+    return <Navigate to={`${getRoleBasePath(activeRole ?? availableRoles[0])}/dashboard`} replace/>;
 }

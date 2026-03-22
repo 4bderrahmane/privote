@@ -1,7 +1,7 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useSuccessToast } from "../hooks/useSuccessToast";
-import { createParty, getAllParties, partyManagement } from "../services/PartyService";
+import { createParty, getAllParties, partyManagement } from "@services/PartyService";
 import type { Party } from "../types/party";
 import "../styles/Parties.css";
 
@@ -20,19 +20,41 @@ const INITIAL_FORM: PartyForm = {
 export default function Parties() {
     const { t } = useTranslation("parties");
     const { showSuccessToast } = useSuccessToast();
+    const showErrorToast = useCallback(
+        (message: string) => {
+            showSuccessToast(message, 5000, "error");
+        },
+        [showSuccessToast]
+    );
+    const resolvePartyError = useCallback(
+        (error: unknown, fallback: string) => {
+            const message = partyManagement.asErrorMessage(error, fallback);
+            const missingCitizenMatch = message.match(/citizen not found with cin\s*=\s*(.+)$/i);
+            if (missingCitizenMatch) {
+                return t("create.errors.memberCinNotFound", {
+                    cin: missingCitizenMatch[1].trim(),
+                    defaultValue: "Citizen not found with CIN = {{cin}}.",
+                });
+            }
+            if (message === "Unable to reach the backend API. Make sure the server is running.") {
+                return t("errors.backendUnavailable", {
+                    defaultValue: "Unable to reach the backend API. Make sure the server is running.",
+                });
+            }
+            return message;
+        },
+        [t]
+    );
     const [form, setForm] = useState(INITIAL_FORM);
     const [saving, setSaving] = useState(false);
-    const [saveError, setSaveError] = useState("");
     const [parties, setParties] = useState<Party[]>([]);
     const [loading, setLoading] = useState(true);
-    const [loadError, setLoadError] = useState("");
 
     useEffect(() => {
         let cancelled = false;
 
         async function loadParties() {
             setLoading(true);
-            setLoadError("");
 
             try {
                 const data = await getAllParties();
@@ -40,7 +62,8 @@ export default function Parties() {
                 setParties(data);
             } catch (error) {
                 if (cancelled) return;
-                setLoadError(partyManagement.asErrorMessage(error, t("list.loadFailed")));
+                setParties([]);
+                showErrorToast(resolvePartyError(error, t("list.loadFailed")));
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -51,7 +74,7 @@ export default function Parties() {
         return () => {
             cancelled = true;
         };
-    }, [t]);
+    }, [resolvePartyError, showErrorToast, t]);
 
     const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = event.target;
@@ -84,16 +107,15 @@ export default function Parties() {
 
     const handleSubmit = async (event: FormEvent) => {
         event.preventDefault();
-        setSaveError("");
 
         if (!form.name.trim()) {
-            setSaveError(t("create.errors.nameRequired"));
+            showErrorToast(t("create.errors.nameRequired"));
             return;
         }
 
         const normalizedMemberCins = form.memberCins.map((cin) => cin.trim()).filter((cin) => cin.length > 0);
         if (normalizedMemberCins.length === 0) {
-            setSaveError(t("create.errors.memberCinRequired"));
+            showErrorToast(t("create.errors.memberCinRequired"));
             return;
         }
 
@@ -108,7 +130,7 @@ export default function Parties() {
             setForm(INITIAL_FORM);
             showSuccessToast(t("create.success", { name: created.name }), 3000);
         } catch (error) {
-            setSaveError(partyManagement.asErrorMessage(error, t("create.errors.submitFailed")));
+            showErrorToast(resolvePartyError(error, t("create.errors.submitFailed")));
         } finally {
             setSaving(false);
         }
@@ -177,8 +199,6 @@ export default function Parties() {
                             </button>
                         </div>
 
-                        {saveError ? <div className="parties-error">{saveError}</div> : null}
-
                         <div className="parties-actions">
                             <button type="submit" className="parties-submit" disabled={saving}>
                                 {saving ? t("create.submitting") : t("create.submit")}
@@ -192,11 +212,6 @@ export default function Parties() {
 
                     {loading ? (
                         <div className="parties-empty">{t("list.loading")}</div>
-                    ) : loadError ? (
-                        <div className="parties-error-block">
-                            <strong>{t("list.loadFailedTitle")}</strong>
-                            <span>{loadError}</span>
-                        </div>
                     ) : parties.length === 0 ? (
                         <div className="parties-empty">
                             <strong>{t("list.emptyTitle")}</strong>

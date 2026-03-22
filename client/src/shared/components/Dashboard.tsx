@@ -1,6 +1,6 @@
 import React, {useEffect, useRef} from "react";
 import {useTranslation} from "react-i18next";
-import {useAuth} from "../../auth/useAuth";
+import {useAuth} from "@/auth/useAuth.ts";
 import {useSuccessToast} from "../hooks/useSuccessToast";
 import "../styles/Dashboard.css";
 
@@ -53,7 +53,7 @@ const Dashboard: React.FC = () => {
     return (
         <div className="dashboard-page">
             <div className="dashboard-card">
-                <h2 className="dashboard-title">{t("welcome.welcome", { name: welcomeName })}</h2>
+                <h2 className="dashboard-title">{t("welcome.welcome", {name: welcomeName})}</h2>
 
                 <p className="dashboard-subtitle">
                     {t("loggedInAs")} <strong>{display}</strong>

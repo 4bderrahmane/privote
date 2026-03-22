@@ -314,6 +314,52 @@
   gap: 10px;
 }
 
+.election-dialog-actions .primary-button,
+.election-dialog-actions .secondary-button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.election-dialog-actions .primary-button {
+  border: none;
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.election-dialog-actions .primary-button:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.election-dialog-actions .primary-button:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.election-dialog-actions .secondary-button {
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: #1e293b;
+}
+
+.election-dialog-actions .secondary-button:hover:not(:disabled) {
+  background: #f3f7fc;
+}
+
+.election-dialog-actions .primary-button:focus-visible,
+.election-dialog-actions .secondary-button:focus-visible {
+  outline: 2px solid #9ec4e6;
+  outline-offset: 2px;
+}
+
 @media (max-width: 980px) {
   .elections-page {
     padding: 22px 16px 34px;
@@ -333,5 +379,14 @@
 @media (max-width: 640px) {
   .elections-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .election-dialog-actions {
+    flex-direction: column-reverse;
+  }
+
+  .election-dialog-actions .primary-button,
+  .election-dialog-actions .secondary-button {
+    width: 100%;
   }
 }

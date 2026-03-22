@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
     ELECTION_VAULT_MIN_PASSWORD_LENGTH,
     base64ToHex,
@@ -10,13 +11,13 @@ import {
 } from "@/crypto/electionKeys";
 import { loadElectionKeyVault, saveElectionKeyVault } from "@/crypto/electionKeyVaultStorage";
 import { useSuccessToast } from "../hooks/useSuccessToast";
-import { electionManagement, getAllElections } from "../services/ElectionService";
+import { electionManagement, getAllElections } from "@services/ElectionService";
 import {
     getElectionResults,
     getTallyBallots,
     publishElectionResults,
     resultsManagement,
-} from "../services/ResultsService";
+} from "@services/ResultsService";
 import type { Election } from "../types/election";
 import type { ElectionResult } from "../types/result";
 
@@ -31,17 +32,17 @@ type ResultEntry = {
 
 const ballotDecoder = new TextDecoder();
 
-function formatDateTime(value?: string | null): string {
+function formatDateTime(value: string | null | undefined, fallback: string, locale?: string): string {
     if (!value) {
-        return "Date unavailable";
+        return fallback;
     }
 
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
-        return "Date unavailable";
+        return fallback;
     }
 
-    return parsed.toLocaleString(undefined, {
+    return parsed.toLocaleString(locale, {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -50,12 +51,15 @@ function formatDateTime(value?: string | null): string {
     });
 }
 
-function formatNumber(value: number): string {
-    return value.toLocaleString("en-US");
+function formatNumber(value: number, locale?: string): string {
+    return value.toLocaleString(locale);
 }
 
-function formatPercentage(value: number): string {
-    return `${value.toFixed(1)}%`;
+function formatPercentage(value: number, locale?: string): string {
+    return `${value.toLocaleString(locale, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+    })}%`;
 }
 
 function base64ToBytes(value: string): Uint8Array {
@@ -67,12 +71,19 @@ function base64ToBytes(value: string): Uint8Array {
     return bytes;
 }
 
-function extractCandidatePublicId(plaintext: Uint8Array): string {
+function extractCandidatePublicId(
+    plaintext: Uint8Array,
+    messages: {
+        invalidJson: string;
+        missingSelection: string;
+        emptySelection: string;
+    }
+): string {
     let parsed: unknown;
     try {
         parsed = JSON.parse(ballotDecoder.decode(plaintext));
     } catch {
-        throw new Error("A decrypted ballot could not be parsed as JSON.");
+        throw new Error(messages.invalidJson);
     }
 
     if (
@@ -80,20 +91,27 @@ function extractCandidatePublicId(plaintext: Uint8Array): string {
         parsed === null ||
         typeof (parsed as { candidatePublicId?: unknown }).candidatePublicId !== "string"
     ) {
-        throw new Error("A decrypted ballot does not contain a candidate selection.");
+        throw new Error(messages.missingSelection);
     }
 
     const candidatePublicId = (parsed as { candidatePublicId: string }).candidatePublicId.trim();
     if (!candidatePublicId) {
-        throw new Error("A decrypted ballot contains an empty candidate selection.");
+        throw new Error(messages.emptySelection);
     }
 
     return candidatePublicId;
 }
 
 const Results: React.FC = () => {
+    const { t: tElections, i18n } = useTranslation("elections");
+    const t = useCallback(
+        (key: string, options?: Record<string, unknown>): string =>
+            tElections(`resultsPage.${key}` as never, options as never) as unknown as string,
+        [tElections]
+    );
     const location = useLocation();
     const { showSuccessToast } = useSuccessToast();
+    const locale = i18n.resolvedLanguage ?? undefined;
     const isAdminView = location.pathname.startsWith("/admin/");
     const electionLinkBase = isAdminView ? "/admin/elections" : "/citizen/elections";
 
@@ -105,6 +123,20 @@ const Results: React.FC = () => {
     const [vaultPasswords, setVaultPasswords] = useState<Record<string, string>>({});
     const [backupJsons, setBackupJsons] = useState<Record<string, string>>({});
     const [publishErrors, setPublishErrors] = useState<Record<string, string>>({});
+    const ballotErrorMessages = useMemo(
+        () => ({
+            invalidJson: t("errors.ballotInvalidJson", {
+                defaultValue: "A decrypted ballot could not be parsed as JSON.",
+            }),
+            missingSelection: t("errors.ballotMissingSelection", {
+                defaultValue: "A decrypted ballot does not contain a candidate selection.",
+            }),
+            emptySelection: t("errors.ballotEmptySelection", {
+                defaultValue: "A decrypted ballot contains an empty candidate selection.",
+            }),
+        }),
+        [t]
+    );
 
     useEffect(() => {
         let cancelled = false;
@@ -144,7 +176,9 @@ const Results: React.FC = () => {
                             result: null,
                             error: resultsManagement.asErrorMessage(
                                 item.reason,
-                                "Unable to load results for this election."
+                                t("errors.loadElectionResults", {
+                                    defaultValue: "Unable to load results for this election.",
+                                })
                             ),
                         };
                     })
@@ -158,7 +192,9 @@ const Results: React.FC = () => {
                 setLoadError(
                     electionManagement.asErrorMessage(
                         error,
-                        "Unable to load election results right now."
+                        t("errors.loadPage", {
+                            defaultValue: "Unable to load election results right now.",
+                        })
                     )
                 );
             } finally {
@@ -173,7 +209,7 @@ const Results: React.FC = () => {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         if (entries.length === 0) {
@@ -188,11 +224,16 @@ const Results: React.FC = () => {
 
     const subtitle = useMemo(() => {
         if (isAdminView) {
-            return "TALLY elections appear here. Unlock the election vault locally to publish any encrypted results that are still pending.";
+            return t("subtitle.admin", {
+                defaultValue:
+                    "TALLY elections appear here. Unlock the election vault locally to publish any encrypted results that are still pending.",
+            });
         }
 
-        return "Final election results appear here once the tally has been published.";
-    }, [isAdminView]);
+        return t("subtitle.citizen", {
+            defaultValue: "Final election results appear here once the tally has been published.",
+        });
+    }, [isAdminView, t]);
 
     const handlePublish = async (entry: ResultEntry) => {
         const result = entry.result;
@@ -206,7 +247,9 @@ const Results: React.FC = () => {
         if (!vaultPassword) {
             setPublishErrors((prev) => ({
                 ...prev,
-                [electionPublicId]: "Election vault password is required to publish results.",
+                [electionPublicId]: t("errors.passwordRequired", {
+                    defaultValue: "Election vault password is required to publish results.",
+                }),
             }));
             return;
         }
@@ -214,7 +257,10 @@ const Results: React.FC = () => {
         if (vaultPassword.length < ELECTION_VAULT_MIN_PASSWORD_LENGTH) {
             setPublishErrors((prev) => ({
                 ...prev,
-                [electionPublicId]: `Vault password must be at least ${ELECTION_VAULT_MIN_PASSWORD_LENGTH} characters.`,
+                [electionPublicId]: t("errors.passwordTooShort", {
+                    min: ELECTION_VAULT_MIN_PASSWORD_LENGTH,
+                    defaultValue: `Vault password must be at least ${ELECTION_VAULT_MIN_PASSWORD_LENGTH} characters.`,
+                }),
             }));
             return;
         }
@@ -222,7 +268,9 @@ const Results: React.FC = () => {
         if (!entry.election.encryptionPublicKey) {
             setPublishErrors((prev) => ({
                 ...prev,
-                [electionPublicId]: "Election encryption public key is missing.",
+                [electionPublicId]: t("errors.encryptionPublicKeyMissing", {
+                    defaultValue: "Election encryption public key is missing.",
+                }),
             }));
             return;
         }
@@ -237,12 +285,19 @@ const Results: React.FC = () => {
 
             if (!storedRecord) {
                 throw new Error(
-                    "Election key vault not found on this browser. Paste the backup JSON created during election setup."
+                    t("errors.vaultMissing", {
+                        defaultValue:
+                            "Election key vault not found on this browser. Paste the backup JSON created during election setup.",
+                    })
                 );
             }
 
             if (storedRecord.electionPublicId !== electionPublicId) {
-                throw new Error("The provided key backup does not belong to this election.");
+                throw new Error(
+                    t("errors.backupWrongElection", {
+                        defaultValue: "The provided key backup does not belong to this election.",
+                    })
+                );
             }
 
             const electionPublicKeyHex = base64ToHex(
@@ -250,7 +305,11 @@ const Results: React.FC = () => {
                 "encryptionPublicKey"
             );
             if (storedRecord.publicKeyHex !== electionPublicKeyHex) {
-                throw new Error("Election key backup does not match the configured encryption public key.");
+                throw new Error(
+                    t("errors.backupKeyMismatch", {
+                        defaultValue: "Election key backup does not match the configured encryption public key.",
+                    })
+                );
             }
 
             const privateKey = await unlockElectionPrivateKeyAsCryptoKey(vaultPassword, storedRecord.vault);
@@ -263,7 +322,12 @@ const Results: React.FC = () => {
             const assignments = await Promise.all(
                 ballots.map(async (ballot) => {
                     if (!ballot.ciphertext) {
-                        throw new Error(`Ballot ${ballot.ballotId} is missing ciphertext.`);
+                        throw new Error(
+                            t("errors.ballotMissingCiphertext", {
+                                ballotId: ballot.ballotId,
+                                defaultValue: `Ballot ${ballot.ballotId} is missing ciphertext.`,
+                            })
+                        );
                     }
 
                     const plaintext = await decryptElectionPayload(
@@ -275,10 +339,14 @@ const Results: React.FC = () => {
                         }
                     );
 
-                    const candidatePublicId = extractCandidatePublicId(plaintext);
+                    const candidatePublicId = extractCandidatePublicId(plaintext, ballotErrorMessages);
                     if (!expectedCandidateIds.has(candidatePublicId)) {
                         throw new Error(
-                            `Ballot ${ballot.ballotId} resolves to an unknown candidate identifier.`
+                            t("errors.ballotUnknownCandidate", {
+                                ballotId: ballot.ballotId,
+                                defaultValue:
+                                    `Ballot ${ballot.ballotId} resolves to an unknown candidate identifier.`,
+                            })
                         );
                     }
 
@@ -308,11 +376,18 @@ const Results: React.FC = () => {
                 delete next[electionPublicId];
                 return next;
             });
-            showSuccessToast(`Results published for ${entry.election.title}.`);
+            showSuccessToast(
+                t("messages.published", {
+                    title: entry.election.title,
+                    defaultValue: `Results published for ${entry.election.title}.`,
+                })
+            );
         } catch (error) {
             const message = resultsManagement.asErrorMessage(
                 error,
-                "Unable to publish results for this election."
+                t("errors.publishFailed", {
+                    defaultValue: "Unable to publish results for this election.",
+                })
             );
             setPublishErrors((prev) => ({
                 ...prev,
@@ -329,19 +404,29 @@ const Results: React.FC = () => {
     };
 
     const publishedCount = entries.filter((entry) => entry.result?.published).length;
+    const publishedSummary =
+        entries.length > 0
+            ? t("subtitle.progress", {
+                  published: publishedCount,
+                  total: entries.length,
+                  defaultValue: `${publishedCount} of ${entries.length} tally elections are published.`,
+              })
+            : "";
 
     return (
         <div className="dashboard-page">
             <div className="dashboard-card results-card">
-                <h2 className="dashboard-title">Results</h2>
+                <h2 className="dashboard-title">{t("title", { defaultValue: "Results" })}</h2>
                 <p className="dashboard-subtitle">
                     {subtitle}
-                    {entries.length > 0 ? ` ${publishedCount} of ${entries.length} tally elections are published.` : ""}
+                    {publishedSummary ? ` ${publishedSummary}` : ""}
                 </p>
 
                 {loading ? (
                     <div className="dashboard-status" style={{ paddingTop: 0 }}>
-                        <div style={{ color: "#6b7280" }}>Loading election results...</div>
+                        <div style={{ color: "#6b7280" }}>
+                            {t("states.loading", { defaultValue: "Loading election results..." })}
+                        </div>
                     </div>
                 ) : loadError ? (
                     <div className="dashboard-status" style={{ paddingTop: 0 }}>
@@ -349,7 +434,9 @@ const Results: React.FC = () => {
                     </div>
                 ) : entries.length === 0 ? (
                     <div className="dashboard-status" style={{ paddingTop: 0 }}>
-                        <div style={{ color: "#6b7280" }}>No elections are in the tally stage yet.</div>
+                        <div style={{ color: "#6b7280" }}>
+                            {t("states.empty", { defaultValue: "No elections are in the tally stage yet." })}
+                        </div>
                     </div>
                 ) : (
                     <div className="results-list">
@@ -360,13 +447,13 @@ const Results: React.FC = () => {
                             const publishError = publishErrors[electionId];
                             const isPublishing = publishingElectionId === electionId;
 
-                            let statusLabel = "Unavailable";
+                            let statusLabel = t("status.unavailable", { defaultValue: "Unavailable" });
                             let statusClass = "results-status--error";
                             if (result?.published) {
-                                statusLabel = "Published";
+                                statusLabel = t("status.published", { defaultValue: "Published" });
                                 statusClass = "results-status--final";
                             } else if (result) {
-                                statusLabel = "Pending tally";
+                                statusLabel = t("status.pending", { defaultValue: "Pending tally" });
                                 statusClass = "results-status--preliminary";
                             }
 
@@ -382,7 +469,12 @@ const Results: React.FC = () => {
                                         <div className="results-header-left">
                                             <h3 className="results-election-name">{entry.election.title}</h3>
                                             <span className="results-date">
-                                                Ended: {formatDateTime(result?.endTime ?? entry.election.endTime)}
+                                                {t("labels.ended", { defaultValue: "Ended" })}:{" "}
+                                                {formatDateTime(
+                                                    result?.endTime ?? entry.election.endTime,
+                                                    t("labels.dateUnavailable", { defaultValue: "Date unavailable" }),
+                                                    locale
+                                                )}
                                             </span>
                                         </div>
                                         <div className="results-header-right">
@@ -400,45 +492,50 @@ const Results: React.FC = () => {
                                                     className="results-election-link"
                                                     to={`${electionLinkBase}/${electionId}`}
                                                 >
-                                                    Open election
+                                                    {t("actions.openElection", { defaultValue: "Open election" })}
                                                 </Link>
                                             </div>
 
                                             {entry.error || !result ? (
                                                 <div className="results-error-box">
-                                                    {entry.error ?? "Results are not available for this election."}
+                                                    {entry.error ??
+                                                        t("errors.resultsUnavailable", {
+                                                            defaultValue: "Results are not available for this election.",
+                                                        })}
                                                 </div>
                                             ) : (
                                                 <>
                                                     <div className="results-stats">
                                                         <div className="results-stat">
                                                             <span className="results-stat-label">
-                                                                Total ballots
+                                                                {t("labels.totalBallots", { defaultValue: "Total ballots" })}
                                                             </span>
                                                             <span className="results-stat-value">
-                                                                {formatNumber(result.totalVotes)}
+                                                                {formatNumber(result.totalVotes, locale)}
                                                             </span>
                                                         </div>
                                                         <div className="results-stat">
                                                             <span className="results-stat-label">
-                                                                Tallied ballots
+                                                                {t("labels.talliedBallots", { defaultValue: "Tallied ballots" })}
                                                             </span>
                                                             <span className="results-stat-value">
-                                                                {formatNumber(result.talliedBallots)} / {formatNumber(result.totalVotes)}
+                                                                {formatNumber(result.talliedBallots, locale)} / {formatNumber(result.totalVotes, locale)}
                                                             </span>
                                                         </div>
                                                         <div className="results-stat">
                                                             <span className="results-stat-label">
-                                                                Registered voters
+                                                                {t("labels.registeredVoters", { defaultValue: "Registered voters" })}
                                                             </span>
                                                             <span className="results-stat-value">
-                                                                {formatNumber(result.registeredVoters)}
+                                                                {formatNumber(result.registeredVoters, locale)}
                                                             </span>
                                                         </div>
                                                         <div className="results-stat">
-                                                            <span className="results-stat-label">Turnout</span>
+                                                            <span className="results-stat-label">
+                                                                {t("labels.turnout", { defaultValue: "Turnout" })}
+                                                            </span>
                                                             <span className="results-stat-value">
-                                                                {formatPercentage(result.turnoutPercentage)}
+                                                                {formatPercentage(result.turnoutPercentage, locale)}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -446,19 +543,31 @@ const Results: React.FC = () => {
                                                     {!result.published ? (
                                                         <div className="results-pending-panel">
                                                             <h4 className="results-section-title">
-                                                                Results not published yet
+                                                                {t("pending.title", { defaultValue: "Results not published yet" })}
                                                             </h4>
                                                             <p className="results-pending-copy">
-                                                                Ballots remain encrypted until the tally is completed.
+                                                                {t("pending.baseCopy", {
+                                                                    defaultValue: "Ballots remain encrypted until the tally is completed.",
+                                                                })}
                                                                 {isAdminView
-                                                                    ? " Publish the results from this browser by unlocking the election vault locally."
-                                                                    : " Check back once an administrator finalizes the tally."}
+                                                                    ? ` ${t("pending.adminCopy", {
+                                                                          defaultValue:
+                                                                              "Publish the results from this browser by unlocking the election vault locally.",
+                                                                      })}`
+                                                                    : ` ${t("pending.citizenCopy", {
+                                                                          defaultValue:
+                                                                              "Check back once an administrator finalizes the tally.",
+                                                                      })}`}
                                                             </p>
 
                                                             {isAdminView ? (
                                                                 <div className="results-publish-panel">
                                                                     <label className="results-form-field">
-                                                                        <span>Election vault password</span>
+                                                                        <span>
+                                                                            {t("fields.vaultPassword", {
+                                                                                defaultValue: "Election vault password",
+                                                                            })}
+                                                                        </span>
                                                                         <input
                                                                             type="password"
                                                                             autoComplete="current-password"
@@ -474,7 +583,11 @@ const Results: React.FC = () => {
                                                                     </label>
 
                                                                     <label className="results-form-field">
-                                                                        <span>Backup JSON (optional)</span>
+                                                                        <span>
+                                                                            {t("fields.backupJson", {
+                                                                                defaultValue: "Backup JSON (optional)",
+                                                                            })}
+                                                                        </span>
                                                                         <textarea
                                                                             rows={8}
                                                                             value={backupJsons[electionId] ?? ""}
@@ -484,7 +597,10 @@ const Results: React.FC = () => {
                                                                                     [electionId]: event.target.value,
                                                                                 }))
                                                                             }
-                                                                            placeholder="Paste the saved election key backup if this browser does not already have it."
+                                                                            placeholder={t("fields.backupPlaceholder", {
+                                                                                defaultValue:
+                                                                                    "Paste the saved election key backup if this browser does not already have it.",
+                                                                            })}
                                                                         />
                                                                     </label>
 
@@ -501,8 +617,12 @@ const Results: React.FC = () => {
                                                                             disabled={isPublishing}
                                                                         >
                                                                             {isPublishing
-                                                                                ? "Publishing results..."
-                                                                                : "Decrypt and publish results"}
+                                                                                ? t("actions.publishing", {
+                                                                                      defaultValue: "Publishing results...",
+                                                                                  })
+                                                                                : t("actions.publish", {
+                                                                                      defaultValue: "Decrypt and publish results",
+                                                                                  })}
                                                                         </button>
                                                                     </div>
                                                                 </div>
@@ -512,7 +632,9 @@ const Results: React.FC = () => {
                                                         <>
                                                             {!hasVotes ? (
                                                                 <div className="results-empty-box">
-                                                                    No ballots were cast in this election.
+                                                                    {t("states.noBallots", {
+                                                                        defaultValue: "No ballots were cast in this election.",
+                                                                    })}
                                                                 </div>
                                                             ) : null}
 
@@ -530,11 +652,19 @@ const Results: React.FC = () => {
                                                                         >
                                                                             <div className="results-candidate-info">
                                                                                 <span className="results-candidate-rank">
-                                                                                    {isWinner ? "Winner" : `#${index + 1}`}
+                                                                                    {isWinner
+                                                                                        ? t("labels.winner", { defaultValue: "Winner" })
+                                                                                        : t("labels.rank", {
+                                                                                              rank: index + 1,
+                                                                                              defaultValue: `#${index + 1}`,
+                                                                                          })}
                                                                                 </span>
                                                                                 <div className="results-candidate-copy">
                                                                                     <span className="results-candidate-name">
-                                                                                        {candidate.fullName || "Unnamed candidate"}
+                                                                                        {candidate.fullName ||
+                                                                                            t("labels.unnamedCandidate", {
+                                                                                                defaultValue: "Unnamed candidate",
+                                                                                            })}
                                                                                     </span>
                                                                                     {candidate.partyName ? (
                                                                                         <span className="results-candidate-party">
@@ -553,8 +683,8 @@ const Results: React.FC = () => {
                                                                                     />
                                                                                 </div>
                                                                                 <span className="results-votes-count">
-                                                                                    {formatNumber(candidate.votes)} (
-                                                                                    {formatPercentage(candidate.percentage)})
+                                                                                    {formatNumber(candidate.votes, locale)} (
+                                                                                    {formatPercentage(candidate.percentage, locale)})
                                                                                 </span>
                                                                             </div>
                                                                         </div>

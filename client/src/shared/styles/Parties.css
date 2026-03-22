@@ -102,6 +102,11 @@
 
 .party-member-remove,
 .party-member-add {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
     border: 1px solid var(--line);
     border-radius: 10px;
     background: #ffffff;
@@ -109,35 +114,38 @@
     font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
+    transition: background 160ms ease, border-color 160ms ease, transform 120ms ease, box-shadow 160ms ease;
 }
 
 .party-member-remove {
-    padding: 0 14px;
+    padding: 0 16px;
+    border-color: #e6c5c5;
+    color: #9f1239;
 }
 
 .party-member-add {
     align-self: flex-start;
-    padding: 10px 14px;
+    padding: 0 16px;
+    border-color: #b8cce5;
+    color: #1f4b76;
 }
 
-.party-member-remove:hover,
-.party-member-add:hover {
-    background: #f7fafe;
+.party-member-remove:hover:not(:disabled) {
+    background: #fff1f2;
+    border-color: #f5a5b1;
+    transform: translateY(-1px);
 }
 
-.parties-error,
-.parties-error-block {
-    color: var(--danger-text);
-    background: var(--danger-soft);
-    border: 1px solid #f3b2b2;
-    border-radius: 12px;
-    padding: 12px 14px;
+.party-member-add:hover:not(:disabled) {
+    background: #f0f6ff;
+    border-color: #93b5dd;
+    transform: translateY(-1px);
 }
 
-.parties-error-block {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+.party-member-remove:focus-visible,
+.party-member-add:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.18);
 }
 
 .parties-actions {
@@ -146,23 +154,43 @@
 }
 
 .parties-submit {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
     border: none;
     border-radius: 12px;
-    padding: 11px 18px;
-    background: var(--primary);
+    padding: 0 18px;
+    background: linear-gradient(180deg, #1c619d 0%, #0f4c81 100%);
     color: #ffffff;
     font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
+    box-shadow: 0 8px 20px rgba(15, 76, 129, 0.22);
+    transition: background 160ms ease, box-shadow 160ms ease, transform 120ms ease, opacity 160ms ease;
 }
 
 .parties-submit:hover:not(:disabled) {
-    background: var(--primary-hover);
+    background: linear-gradient(180deg, #225f95 0%, #0d406c 100%);
+    box-shadow: 0 10px 22px rgba(15, 76, 129, 0.28);
+    transform: translateY(-1px);
+}
+
+.parties-submit:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.parties-submit:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.24), 0 8px 20px rgba(15, 76, 129, 0.22);
 }
 
 .parties-submit:disabled {
     opacity: 0.65;
     cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
 }
 
 .parties-list {

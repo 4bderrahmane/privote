@@ -14,3 +14,15 @@ export type CastVoteReceipt = {
     castAt?: string | null;
 };
 
+export type VoteRecord = {
+    id: string;
+    electionId: string;
+    electionName: string;
+    votedAt?: string | null;
+    transactionHash?: string | null;
+    ciphertextHash?: string | null;
+    nullifier?: string | null;
+    blockNumber?: number | null;
+    status: "confirmed" | "recorded";
+    receiptAvailable: boolean;
+};

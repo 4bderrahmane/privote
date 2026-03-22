@@ -1,4 +1,3 @@
-// import type {UserResponseDTO} from "@/features/authentication/types/api.types.ts";
 import type {ReactNode} from "react";
 import type {UserResponseDTO} from "@/user-management/types/types.ts";
 
