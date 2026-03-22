@@ -1,13 +1,139 @@
 {
+  "status": {
+    "open": "Ouverte",
+    "upcoming": "À venir",
+    "closed": "Fermée"
+  },
+  "phase": {
+    "REGISTRATION": "Inscription",
+    "VOTING": "Vote",
+    "TALLY": "Dépouillement"
+  },
   "admin": {
-    "title": "Tableau de bord administrateur",
-    "subtitle": "Bon retour, {{name}}. Gérez les élections, consultez les résultats et contrôlez le cycle de vie des élections depuis ici.",
-    "action": "Créer une élection"
+    "title": "Centre de commande administrateur",
+    "subtitle": "Bon retour, {{name}}. Suivez les opérations électorales et gérez rapidement les actions du cycle de vie depuis ici.",
+    "action": "Créer une élection",
+    "kpis": {
+      "total": "Élections totales",
+      "open": "Ouvertes maintenant",
+      "upcoming": "À venir",
+      "tally": "En dépouillement"
+    },
+    "sections": {
+      "needsAction": "Actions requises",
+      "recent": "Élections récentes",
+      "quickLinks": "Accès rapides"
+    },
+    "actions": {
+      "createElection": "Créer une élection",
+      "manageParties": "Gérer les partis",
+      "viewResults": "Voir les résultats",
+      "viewAllElections": "Ouvrir la page des élections",
+      "deploy": "Déployer",
+      "start": "Démarrer",
+      "completeVoting": "Clôturer le vote",
+      "details": "Détails"
+    },
+    "empty": {
+      "needsAction": "Aucune action du cycle de vie n'est en attente.",
+      "recent": "Aucune élection trouvée pour le moment."
+    },
+    "state": {
+      "loading": "Chargement du tableau de bord..."
+    },
+    "messages": {
+      "loadFailed": "Impossible de charger les données du tableau de bord.",
+      "deployed": "Élection déployée : {{title}}",
+      "started": "Élection démarrée : {{title}}",
+      "actionFailed": "Impossible d'exécuter cette action."
+    }
   },
   "citizen": {
-    "title": "Tableau de bord citoyen",
-    "subtitle": "Bon retour, {{name}}. Parcourez les élections disponibles, votez et suivez les résultats publiés.",
-    "action": "Voir les élections"
+    "title": "Centre de commande citoyen",
+    "subtitle": "Bon retour, {{name}}. Voyez ce que vous pouvez faire maintenant et suivez votre activité de vote.",
+    "action": "Voir les élections",
+    "kpis": {
+      "openToVote": "Ouvertes au vote",
+      "upcoming": "À venir",
+      "registered": "Inscriptions",
+      "voted": "Votes effectués"
+    },
+    "sections": {
+      "nextElection": "Prochaine élection",
+      "recentVotes": "Bulletins récents",
+      "quickLinks": "Accès rapides"
+    },
+    "nextElection": {
+      "none": "Aucune élection ouverte ou à venir n'a été trouvée.",
+      "statusOpen": "Ouverte maintenant",
+      "statusUpcoming": "À venir",
+      "openAction": "Voter maintenant",
+      "upcomingAction": "Voir les détails",
+      "closedAction": "Voir les élections",
+      "registrationHint": "Statut d'inscription : {{status}}"
+    },
+    "quickLinks": {
+      "browse": "Parcourir les élections",
+      "myVotes": "Mes votes",
+      "results": "Résultats publiés"
+    },
+    "recentVotes": {
+      "empty": "Aucun reçu de bulletin stocké localement pour le moment.",
+      "viewAll": "Ouvrir l'historique complet des votes",
+      "votedAt": "Voté le {{date}}"
+    },
+    "registration": {
+      "missing": "Non inscrit",
+      "pending": "Inscription en attente",
+      "onChain": "Inscription on-chain",
+      "cast": "Bulletin soumis"
+    },
+    "state": {
+      "loading": "Chargement du tableau de bord..."
+    },
+    "messages": {
+      "loadFailed": "Impossible de charger les données du tableau de bord.",
+      "registrationLoadPartial": "Certains statuts d'inscription n'ont pas pu être chargés."
+    }
+  },
+  "myVotesPage": {
+    "title": "Mes votes",
+    "subtitleEmpty": "Les participations confirmées aux élections et les reçus de bulletin enregistrés localement s'afficheront ici.",
+    "subtitleWithRecords": "Cette page affiche les élections auxquelles vous avez déjà voté. Les reçus complets des bulletins sont disponibles sur le navigateur où le vote a été soumis.",
+    "state": {
+      "loading": "Chargement de votre historique de votes...",
+      "empty": "Aucun enregistrement de vote n'a encore été trouvé pour ce compte."
+    },
+    "status": {
+      "confirmed": "Reçu confirmé",
+      "recorded": "Participation enregistrée"
+    },
+    "labels": {
+      "voted": "Voté",
+      "transaction": "Transaction",
+      "ciphertext": "Texte chiffré",
+      "nullifier": "Nullifier",
+      "block": "Bloc",
+      "transactionHash": "Hash de transaction",
+      "ciphertextHash": "Hash du texte chiffré"
+    },
+    "actions": {
+      "openElection": "Ouvrir l'élection",
+      "copy": "Copier",
+      "copyTransactionHash": "Copier le hash complet de transaction",
+      "copyCiphertextHash": "Copier le hash complet du texte chiffré",
+      "copyNullifier": "Copier le nullifier complet"
+    },
+    "values": {
+      "notAvailable": "Non disponible",
+      "notAvailableOnBrowser": "Non disponible sur ce navigateur"
+    },
+    "messages": {
+      "loadFailed": "Impossible de charger votre historique de votes pour le moment.",
+      "copied": "{{label}} copié dans le presse-papiers.",
+      "copyFailed": "Impossible de copier {{label}}.",
+      "receiptLocalOnly": "Un vote a été enregistré pour cette élection, mais le reçu complet du bulletin n'est disponible que sur le navigateur où le bulletin a été soumis."
+    }
   },
   "chooseRole": {
     "title": "Choisissez comment vous souhaitez entrer",

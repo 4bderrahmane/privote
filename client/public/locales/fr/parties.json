@@ -1,6 +1,9 @@
 {
   "title": "Partis politiques",
   "subtitle": "Gérez les partis disponibles pour l'affiliation des candidats et l'administration des élections.",
+  "errors": {
+    "backendUnavailable": "Impossible de joindre l'API backend. Vérifiez que le serveur est démarré."
+  },
   "create": {
     "title": "Créer un parti",
     "subtitle": "Seuls les administrateurs peuvent créer de nouveaux partis.",
@@ -22,6 +25,7 @@
     "errors": {
       "nameRequired": "Le nom du parti est obligatoire.",
       "memberCinRequired": "Au moins un CIN de membre est obligatoire.",
+      "memberCinNotFound": "Citoyen introuvable avec CIN = {{cin}}.",
       "submitFailed": "Impossible de créer le parti."
     }
   },

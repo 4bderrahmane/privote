@@ -1,13 +1,139 @@
 {
+  "status": {
+    "open": "Open",
+    "upcoming": "Upcoming",
+    "closed": "Closed"
+  },
+  "phase": {
+    "REGISTRATION": "Registration",
+    "VOTING": "Voting",
+    "TALLY": "Tally"
+  },
   "admin": {
-    "title": "Admin dashboard",
-    "subtitle": "Welcome back, {{name}}. Manage elections, review results, and control the election lifecycle from here.",
-    "action": "Create election"
+    "title": "Admin command center",
+    "subtitle": "Welcome back, {{name}}. Track election operations and handle lifecycle actions quickly from here.",
+    "action": "Create election",
+    "kpis": {
+      "total": "Total elections",
+      "open": "Open now",
+      "upcoming": "Upcoming",
+      "tally": "In tally"
+    },
+    "sections": {
+      "needsAction": "Needs action",
+      "recent": "Recent elections",
+      "quickLinks": "Quick links"
+    },
+    "actions": {
+      "createElection": "Create election",
+      "manageParties": "Manage parties",
+      "viewResults": "View results",
+      "viewAllElections": "Open elections page",
+      "deploy": "Deploy",
+      "start": "Start",
+      "completeVoting": "Complete voting",
+      "details": "Details"
+    },
+    "empty": {
+      "needsAction": "No lifecycle action is pending right now.",
+      "recent": "No elections found yet."
+    },
+    "state": {
+      "loading": "Loading dashboard..."
+    },
+    "messages": {
+      "loadFailed": "Unable to load dashboard data.",
+      "deployed": "Election deployed: {{title}}",
+      "started": "Election started: {{title}}",
+      "actionFailed": "Unable to complete this action."
+    }
   },
   "citizen": {
-    "title": "Citizen dashboard",
-    "subtitle": "Welcome back, {{name}}. Browse available elections, cast your vote, and follow published results.",
-    "action": "View elections"
+    "title": "Citizen command center",
+    "subtitle": "Welcome back, {{name}}. See what you can do now and track your voting activity.",
+    "action": "View elections",
+    "kpis": {
+      "openToVote": "Open to vote",
+      "upcoming": "Upcoming",
+      "registered": "Registered",
+      "voted": "Voted"
+    },
+    "sections": {
+      "nextElection": "Next election",
+      "recentVotes": "Recent ballots",
+      "quickLinks": "Quick links"
+    },
+    "nextElection": {
+      "none": "No open or upcoming elections were found.",
+      "statusOpen": "Open now",
+      "statusUpcoming": "Upcoming",
+      "openAction": "Vote now",
+      "upcomingAction": "View details",
+      "closedAction": "View elections",
+      "registrationHint": "Registration status: {{status}}"
+    },
+    "quickLinks": {
+      "browse": "Browse elections",
+      "myVotes": "My votes",
+      "results": "Published results"
+    },
+    "recentVotes": {
+      "empty": "No locally stored ballot receipts yet.",
+      "viewAll": "Open full vote history",
+      "votedAt": "Voted {{date}}"
+    },
+    "registration": {
+      "missing": "Not registered",
+      "pending": "Pending registration",
+      "onChain": "On-chain registered",
+      "cast": "Ballot cast"
+    },
+    "state": {
+      "loading": "Loading dashboard..."
+    },
+    "messages": {
+      "loadFailed": "Unable to load dashboard data.",
+      "registrationLoadPartial": "Some registration statuses could not be loaded."
+    }
+  },
+  "myVotesPage": {
+    "title": "My Votes",
+    "subtitleEmpty": "Confirmed election participations and locally saved ballot receipts will appear here.",
+    "subtitleWithRecords": "This page shows the elections you have already voted in. Full ballot receipts are available on the browser where the vote was submitted.",
+    "state": {
+      "loading": "Loading your vote history...",
+      "empty": "No vote records were found for this account yet."
+    },
+    "status": {
+      "confirmed": "Confirmed receipt",
+      "recorded": "Recorded participation"
+    },
+    "labels": {
+      "voted": "Voted",
+      "transaction": "Transaction",
+      "ciphertext": "Ciphertext",
+      "nullifier": "Nullifier",
+      "block": "Block",
+      "transactionHash": "Transaction hash",
+      "ciphertextHash": "Ciphertext hash"
+    },
+    "actions": {
+      "openElection": "Open election",
+      "copy": "Copy",
+      "copyTransactionHash": "Copy full transaction hash",
+      "copyCiphertextHash": "Copy full ciphertext hash",
+      "copyNullifier": "Copy full nullifier"
+    },
+    "values": {
+      "notAvailable": "Not available",
+      "notAvailableOnBrowser": "Not available on this browser"
+    },
+    "messages": {
+      "loadFailed": "Unable to load your vote history right now.",
+      "copied": "{{label}} copied to clipboard.",
+      "copyFailed": "Unable to copy {{label}}.",
+      "receiptLocalOnly": "A vote was recorded for this election, but the full ballot receipt is only available on the browser where the ballot was submitted."
+    }
   },
   "chooseRole": {
     "title": "Choose how you want to enter",

@@ -34,6 +34,7 @@
       "deployed": "Election déployée : {{title}}",
       "started": "Election démarrée : {{title}}",
       "ended": "Clé de déchiffrement publiée pour : {{title}}",
+      "startBeforeConfiguredStartTime": "Cette élection ne peut pas être démarrée avant son heure de début configurée.",
       "vaultMissing": "Aucun coffre-fort chiffré local n'a été trouvé pour cette élection. Collez le JSON de sauvegarde pour continuer.",
       "keyMismatch": "La sauvegarde chiffrée choisie ne correspond pas à la clé publique de cette élection.",
       "passwordRequired": "Le mot de passe du coffre-fort est obligatoire.",
@@ -122,6 +123,160 @@
       "contractAddress": "Adresse du contrat",
       "externalNullifier": "Nullifier externe",
       "encryptionPublicKey": "Clé publique de chiffrement"
+    },
+    "candidates": {
+      "kickerAdmin": "Gestion des candidats",
+      "kickerCitizen": "Liste des candidats",
+      "title": "Candidats",
+      "subtitleAdmin": "Affectez des citoyens à cette élection via leur CIN. L'interface publique n'affichera que leur nom, leur parti et leur statut.",
+      "subtitleCitizen": "Seuls les candidats ACTIFS sont visibles par les citoyens.",
+      "countOne": "{{count}} candidat",
+      "countOther": "{{count}} candidats",
+      "fields": {
+        "cin": "CIN du citoyen",
+        "party": "Parti",
+        "status": "Statut"
+      },
+      "placeholders": {
+        "cin": "ID national / CIN"
+      },
+      "partyIndependent": "Candidat indépendant",
+      "status": {
+        "ACTIVE": "Actif",
+        "PENDING_APPROVAL": "En attente d'approbation",
+        "WITHDRAWN": "Retiré",
+        "DISQUALIFIED": "Disqualifié"
+      },
+      "locked": "La gestion des candidats est verrouillée une fois l'élection sortie de la phase INSCRIPTION.",
+      "saving": "Ajout du candidat...",
+      "add": "Ajouter le candidat",
+      "loading": "Chargement des candidats...",
+      "empty": "Aucun candidat n'a encore été affecté à cette élection.",
+      "messages": {
+        "created": "Le candidat \"{{name}}\" a été ajouté à {{title}}."
+      },
+      "errors": {
+        "loadFailed": "Impossible de charger les candidats et les données associées.",
+        "cinRequired": "Le CIN du citoyen est obligatoire.",
+        "submitFailed": "Impossible d'ajouter un candidat à cette élection."
+      }
+    },
+    "vote": {
+      "kicker": "Parcours citoyen",
+      "title": "Votre participation",
+      "subtitle": "Enregistrez votre identité de vote privée pendant l'inscription, puis déverrouillez-la pour soumettre votre bulletin chiffré pendant le vote.",
+      "notRegistered": "Non inscrit",
+      "fields": {
+        "localVault": "Coffre d'identité local",
+        "commitmentStatus": "Statut de l'engagement",
+        "identityCommitment": "Engagement d'identité enregistré",
+        "password": "Mot de passe d'identité",
+        "passwordConfirm": "Confirmer le mot de passe d'identité"
+      },
+      "vaultPresent": "Présent sur ce navigateur",
+      "vaultMissing": "Absent sur ce navigateur",
+      "loadingRegistration": "Chargement de votre statut d'inscription...",
+      "placeholders": {
+        "passwordUnlock": "Déverrouillez votre identité électorale locale",
+        "passwordCreate": "Créez un mot de passe pour votre identité électorale locale",
+        "passwordConfirm": "Répétez le même mot de passe"
+      },
+      "vaultHintPresent": "Ce navigateur stocke déjà votre coffre d'identité électorale chiffré. Utilisez le même mot de passe que lors de votre première inscription.",
+      "vaultHintMissing": "Aucun coffre d'identité électorale local n'a été trouvé. L'inscription va en créer un dans ce navigateur et le réutiliser pour voter.",
+      "registering": "Inscription de l'identité...",
+      "refreshRegistration": "Actualiser l'inscription",
+      "registerAction": "S'inscrire pour voter",
+      "alreadyCast": "Votre bulletin a déjà été soumis pour cette élection.",
+      "registrationRequiredNote": "Vous ne pouvez pas encore voter, car votre engagement d'identité n'a pas été enregistré on-chain pendant la phase d'inscription.",
+      "casting": "Envoi du bulletin...",
+      "castAction": "Voter",
+      "registeredReady": "Votre identité de vote privée est déjà enregistrée pour cette élection.",
+      "tallyClosed": "Le vote est terminé. Cette élection est actuellement en dépouillement.",
+      "messages": {
+        "registeredWithVault": "L'identité de vote locale a été créée et enregistrée pour {{title}}.",
+        "registered": "L'identité de vote a été enregistrée pour {{title}}.",
+        "cast": "Bulletin soumis pour {{name}}."
+      },
+      "errors": {
+        "registrationLoadFailed": "Impossible de charger votre statut d'inscription pour cette élection.",
+        "externalNullifierMissing": "Le nullifier externe de l'élection est manquant.",
+        "passwordRequired": "Le mot de passe d'identité est obligatoire.",
+        "passwordConfirmRequired": "Confirmez votre mot de passe d'identité pour créer un coffre local.",
+        "passwordMismatch": "La confirmation du mot de passe d'identité ne correspond pas.",
+        "registrationSubmitFailed": "Impossible d'enregistrer votre identité de vote pour cette élection.",
+        "registrationRequired": "Terminez l'inscription électorale avant de voter.",
+        "alreadyCast": "Vous avez déjà soumis un bulletin pour cette élection.",
+        "candidateRequired": "Sélectionnez un candidat avant de soumettre votre bulletin.",
+        "contractMissing": "L'adresse du contrat de l'élection est manquante.",
+        "publicKeyMissing": "La clé publique de chiffrement de l'élection est manquante.",
+        "identityMismatch": "L'identité locale déverrouillée ne correspond pas à l'identité enregistrée pour cette élection.",
+        "castFailed": "Impossible de voter pour cette élection."
+      }
+    }
+  },
+  "resultsPage": {
+    "title": "Résultats",
+    "subtitle": {
+      "admin": "Les élections en phase DÉPOUILLEMENT apparaissent ici. Déverrouillez localement le coffre-fort de l'élection pour publier les résultats chiffrés encore en attente.",
+      "citizen": "Les résultats finaux apparaissent ici une fois le dépouillement publié.",
+      "progress": "{{published}} élections de dépouillement sur {{total}} sont publiées."
+    },
+    "states": {
+      "loading": "Chargement des résultats de l'élection...",
+      "empty": "Aucune élection n'est encore en phase de dépouillement.",
+      "noBallots": "Aucun bulletin n'a été déposé dans cette élection."
+    },
+    "status": {
+      "unavailable": "Indisponible",
+      "published": "Publié",
+      "pending": "Dépouillement en attente"
+    },
+    "labels": {
+      "ended": "Terminée",
+      "dateUnavailable": "Date indisponible",
+      "totalBallots": "Total des bulletins",
+      "talliedBallots": "Bulletins dépouillés",
+      "registeredVoters": "Électeurs inscrits",
+      "turnout": "Participation",
+      "winner": "Gagnant",
+      "rank": "#{{rank}}",
+      "unnamedCandidate": "Candidat sans nom"
+    },
+    "actions": {
+      "openElection": "Ouvrir l'élection",
+      "publish": "Déchiffrer et publier les résultats",
+      "publishing": "Publication des résultats..."
+    },
+    "pending": {
+      "title": "Résultats non publiés",
+      "baseCopy": "Les bulletins restent chiffrés tant que le dépouillement n'est pas terminé.",
+      "adminCopy": "Publiez les résultats depuis ce navigateur en déverrouillant localement le coffre-fort de l'élection.",
+      "citizenCopy": "Revenez plus tard lorsqu'un administrateur aura finalisé le dépouillement."
+    },
+    "fields": {
+      "vaultPassword": "Mot de passe du coffre-fort de l'élection",
+      "backupJson": "JSON de sauvegarde (optionnel)",
+      "backupPlaceholder": "Collez la sauvegarde de clé d'élection si ce navigateur ne la possède pas déjà."
+    },
+    "messages": {
+      "published": "Résultats publiés pour {{title}}."
+    },
+    "errors": {
+      "loadElectionResults": "Impossible de charger les résultats pour cette élection.",
+      "loadPage": "Impossible de charger les résultats des élections pour le moment.",
+      "passwordRequired": "Le mot de passe du coffre-fort est requis pour publier les résultats.",
+      "passwordTooShort": "Le mot de passe du coffre-fort doit contenir au moins {{min}} caractères.",
+      "encryptionPublicKeyMissing": "La clé publique de chiffrement de l'élection est manquante.",
+      "vaultMissing": "Aucun coffre-fort de clé d'élection trouvé sur ce navigateur. Collez le JSON de sauvegarde créé lors de la configuration.",
+      "backupWrongElection": "La sauvegarde de clé fournie n'appartient pas à cette élection.",
+      "backupKeyMismatch": "La sauvegarde de clé d'élection ne correspond pas à la clé publique configurée.",
+      "publishFailed": "Impossible de publier les résultats pour cette élection.",
+      "resultsUnavailable": "Les résultats ne sont pas disponibles pour cette élection.",
+      "ballotInvalidJson": "Un bulletin déchiffré n'a pas pu être analysé en JSON.",
+      "ballotMissingSelection": "Un bulletin déchiffré ne contient aucun choix de candidat.",
+      "ballotEmptySelection": "Un bulletin déchiffré contient un choix de candidat vide.",
+      "ballotMissingCiphertext": "Le bulletin {{ballotId}} ne contient pas de texte chiffré.",
+      "ballotUnknownCandidate": "Le bulletin {{ballotId}} correspond à un identifiant de candidat inconnu."
     }
   }
 }

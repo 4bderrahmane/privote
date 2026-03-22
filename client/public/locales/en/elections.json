@@ -34,6 +34,7 @@
       "deployed": "Election deployed: {{title}}",
       "started": "Election started: {{title}}",
       "ended": "Decryption key published for: {{title}}",
+      "startBeforeConfiguredStartTime": "This election cannot be started before its configured start time.",
       "vaultMissing": "No local encrypted key vault was found for this election. Paste the backup JSON to continue.",
       "keyMismatch": "The selected encrypted backup does not match this election's public encryption key.",
       "passwordRequired": "Vault password is required.",
@@ -122,6 +123,160 @@
       "contractAddress": "Contract address",
       "externalNullifier": "External nullifier",
       "encryptionPublicKey": "Encryption public key"
+    },
+    "candidates": {
+      "kickerAdmin": "Candidate management",
+      "kickerCitizen": "Ballot slate",
+      "title": "Candidates",
+      "subtitleAdmin": "Assign citizens to this election by CIN. The public interface will only show their name, party, and status.",
+      "subtitleCitizen": "Only ACTIVE candidates are shown to citizens.",
+      "countOne": "{{count}} candidate",
+      "countOther": "{{count}} candidates",
+      "fields": {
+        "cin": "Citizen CIN",
+        "party": "Party",
+        "status": "Status"
+      },
+      "placeholders": {
+        "cin": "National ID / CIN"
+      },
+      "partyIndependent": "Independent candidate",
+      "status": {
+        "ACTIVE": "Active",
+        "PENDING_APPROVAL": "Pending approval",
+        "WITHDRAWN": "Withdrawn",
+        "DISQUALIFIED": "Disqualified"
+      },
+      "locked": "Candidate management is locked once the election leaves REGISTRATION.",
+      "saving": "Adding candidate...",
+      "add": "Add candidate",
+      "loading": "Loading candidates...",
+      "empty": "No candidates have been assigned to this election yet.",
+      "messages": {
+        "created": "Candidate \"{{name}}\" was added to {{title}}."
+      },
+      "errors": {
+        "loadFailed": "Unable to load candidates and supporting data.",
+        "cinRequired": "Citizen CIN is required.",
+        "submitFailed": "Unable to add candidate to this election."
+      }
+    },
+    "vote": {
+      "kicker": "Citizen workflow",
+      "title": "Your participation",
+      "subtitle": "Register your private voting identity during registration, then unlock it to cast your encrypted ballot during voting.",
+      "notRegistered": "Not registered",
+      "fields": {
+        "localVault": "Local identity vault",
+        "commitmentStatus": "Commitment status",
+        "identityCommitment": "Registered identity commitment",
+        "password": "Identity password",
+        "passwordConfirm": "Confirm identity password"
+      },
+      "vaultPresent": "Present on this browser",
+      "vaultMissing": "Missing on this browser",
+      "loadingRegistration": "Loading your registration status...",
+      "placeholders": {
+        "passwordUnlock": "Unlock your local voter identity",
+        "passwordCreate": "Create a password for your local voter identity",
+        "passwordConfirm": "Repeat the same password"
+      },
+      "vaultHintPresent": "This browser already stores your encrypted voter identity vault. Use the same password you used when you first registered.",
+      "vaultHintMissing": "No local voter identity vault was found. Registering now will create one in this browser and reuse it for voting.",
+      "registering": "Registering identity...",
+      "refreshRegistration": "Refresh registration",
+      "registerAction": "Register to vote",
+      "alreadyCast": "Your ballot has already been submitted for this election.",
+      "registrationRequiredNote": "You cannot vote yet because your identity commitment was not registered on-chain during the registration phase.",
+      "casting": "Submitting ballot...",
+      "castAction": "Cast vote",
+      "registeredReady": "Your private voting identity is already registered for this election.",
+      "tallyClosed": "Voting is closed. This election is currently in tally.",
+      "messages": {
+        "registeredWithVault": "Local voter identity created and registered for {{title}}.",
+        "registered": "Voting identity registered for {{title}}.",
+        "cast": "Ballot submitted for {{name}}."
+      },
+      "errors": {
+        "registrationLoadFailed": "Unable to load your registration status for this election.",
+        "externalNullifierMissing": "Election external nullifier is missing.",
+        "passwordRequired": "Identity password is required.",
+        "passwordConfirmRequired": "Confirm your identity password to create a local voter vault.",
+        "passwordMismatch": "Identity password confirmation does not match.",
+        "registrationSubmitFailed": "Unable to register your voting identity for this election.",
+        "registrationRequired": "Complete voter registration before casting a vote.",
+        "alreadyCast": "You have already submitted a ballot for this election.",
+        "candidateRequired": "Select a candidate before submitting your ballot.",
+        "contractMissing": "Election contract address is missing.",
+        "publicKeyMissing": "Election encryption public key is missing.",
+        "identityMismatch": "The unlocked local voter identity does not match the identity registered for this election.",
+        "castFailed": "Unable to cast your vote for this election."
+      }
+    }
+  },
+  "resultsPage": {
+    "title": "Results",
+    "subtitle": {
+      "admin": "TALLY elections appear here. Unlock the election vault locally to publish any encrypted results that are still pending.",
+      "citizen": "Final election results appear here once the tally has been published.",
+      "progress": "{{published}} of {{total}} tally elections are published."
+    },
+    "states": {
+      "loading": "Loading election results...",
+      "empty": "No elections are in the tally stage yet.",
+      "noBallots": "No ballots were cast in this election."
+    },
+    "status": {
+      "unavailable": "Unavailable",
+      "published": "Published",
+      "pending": "Pending tally"
+    },
+    "labels": {
+      "ended": "Ended",
+      "dateUnavailable": "Date unavailable",
+      "totalBallots": "Total ballots",
+      "talliedBallots": "Tallied ballots",
+      "registeredVoters": "Registered voters",
+      "turnout": "Turnout",
+      "winner": "Winner",
+      "rank": "#{{rank}}",
+      "unnamedCandidate": "Unnamed candidate"
+    },
+    "actions": {
+      "openElection": "Open election",
+      "publish": "Decrypt and publish results",
+      "publishing": "Publishing results..."
+    },
+    "pending": {
+      "title": "Results not published yet",
+      "baseCopy": "Ballots remain encrypted until the tally is completed.",
+      "adminCopy": "Publish the results from this browser by unlocking the election vault locally.",
+      "citizenCopy": "Check back once an administrator finalizes the tally."
+    },
+    "fields": {
+      "vaultPassword": "Election vault password",
+      "backupJson": "Backup JSON (optional)",
+      "backupPlaceholder": "Paste the saved election key backup if this browser does not already have it."
+    },
+    "messages": {
+      "published": "Results published for {{title}}."
+    },
+    "errors": {
+      "loadElectionResults": "Unable to load results for this election.",
+      "loadPage": "Unable to load election results right now.",
+      "passwordRequired": "Election vault password is required to publish results.",
+      "passwordTooShort": "Vault password must be at least {{min}} characters.",
+      "encryptionPublicKeyMissing": "Election encryption public key is missing.",
+      "vaultMissing": "Election key vault not found on this browser. Paste the backup JSON created during election setup.",
+      "backupWrongElection": "The provided key backup does not belong to this election.",
+      "backupKeyMismatch": "Election key backup does not match the configured encryption public key.",
+      "publishFailed": "Unable to publish results for this election.",
+      "resultsUnavailable": "Results are not available for this election.",
+      "ballotInvalidJson": "A decrypted ballot could not be parsed as JSON.",
+      "ballotMissingSelection": "A decrypted ballot does not contain a candidate selection.",
+      "ballotEmptySelection": "A decrypted ballot contains an empty candidate selection.",
+      "ballotMissingCiphertext": "Ballot {{ballotId}} is missing ciphertext.",
+      "ballotUnknownCandidate": "Ballot {{ballotId}} resolves to an unknown candidate identifier."
     }
   }
 }

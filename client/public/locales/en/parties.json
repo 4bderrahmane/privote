@@ -1,6 +1,9 @@
 {
   "title": "Political parties",
   "subtitle": "Manage the parties available for candidate affiliation and election administration.",
+  "errors": {
+    "backendUnavailable": "Unable to reach the backend API. Make sure the server is running."
+  },
   "create": {
     "title": "Create party",
     "subtitle": "Only administrators can create new parties.",
@@ -22,6 +25,7 @@
     "errors": {
       "nameRequired": "Party name is required.",
       "memberCinRequired": "At least one member CIN is required.",
+      "memberCinNotFound": "Citizen not found with CIN = {{cin}}.",
       "submitFailed": "Unable to create party."
     }
   },
