@@ -30,7 +30,10 @@
     "paths": {
       "@/*": ["src/*"],
       "@components/*": ["src/shared/components/*"],
-      "@types/*": ["src/shared/types/*"]
+      "@features/*": ["src/shared/features/*"],
+      "@pages/*": ["src/shared/pages/*"],
+      "@shared-types/*": ["src/shared/types/*"],
+      "@services/*": ["src/shared/services/*"]
     }
   },
   "include": ["src"]
