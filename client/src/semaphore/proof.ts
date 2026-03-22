@@ -6,27 +6,8 @@ import { isAddress, keccak256, toHex } from "viem";
 
 import { fetchElectionMerkleProof, toMerkleProof } from "./group";
 
-/**
- * Your current Solidity verifier / circuit alignment expects:
- *
- * public signals = [merkleRoot, nullifier, message, scope]
- *
- * where:
- * - message = keccak256(ciphertext) >> 8
- * - scope = externalNullifier
- *
- * So for your app:
- * - do NOT use plaintext vote as message
- * - encrypt first
- * - then hash the ciphertext into the field
- */
-
 export type CiphertextLike = Uint8Array | `0x${string}`;
 
-/**
- * Canonical field-like input accepted by this wrapper.
- * App-level code should normalize early and pass bigints.
- */
 export type FieldLike = bigint | number | string;
 const SNARK_SCALAR_FIELD = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
 
@@ -65,27 +46,13 @@ function normalizeCiphertextBytes(ciphertext: CiphertextLike): Uint8Array {
     return parseHexBytes(ciphertext);
 }
 
-/**
- * Matches Solidity:
- *   uint256(keccak256(ciphertextBytes)) >> 8
- */
+//! This is kept aligned with Solidity contract: uint256(keccak256(ciphertextBytes)) >> 8.
 export function hashCiphertextToField(ciphertext: CiphertextLike): bigint {
     const bytes = normalizeCiphertextBytes(ciphertext);
     const digestHex = keccak256(toHex(bytes));
     return BigInt(digestHex) >> 8n;
 }
 
-/**
- * Canonicalize a field-like value into bigint.
- *
- * Rules:
- * - bigint: accepted directly
- * - number: must be a non-negative safe integer
- * - string:
- *   - decimal string: accepted
- *   - 0x-prefixed hex string: accepted
- *   - everything else: rejected
- */
 export function normalizeFieldValue(value: FieldLike, label: string): bigint {
     let out: bigint;
 
@@ -154,34 +121,15 @@ export type CreateSemaphoreProofParams = {
     merkleProof: MerkleProof;
     merkleDepth: number;
 
-    /**
-     * Canonical field value.
-     * In your voting system this should usually be:
-     *   hashCiphertextToField(ciphertext)
-     */
+    // Usually hashCiphertextToField(ciphertext).
     message: FieldLike;
 
-    /**
-     * Canonical field value.
-     * In your voting system this should be:
-     *   externalNullifier
-     */
+    // Must match contract externalNullifier.
     scope: FieldLike;
 
-    /**
-     * Use your exact local wasm + zkey artifacts.
-     * Prefer getSemaphoreSnarkArtifacts() for the checked-in client artifacts.
-     */
     snarkArtifacts: SnarkArtifacts;
 };
 
-/**
- * Safe application-level wrapper.
- * Enforces:
- * - proof leaf belongs to identity
- * - merkleDepth is large enough for the proof siblings returned by the group service
- * - message/scope are canonicalized to bigint
- */
 export async function createSemaphoreProof(
     params: CreateSemaphoreProofParams
 ): Promise<SemaphoreProof> {
@@ -214,27 +162,11 @@ export type CreateElectionVoteProofParams = {
     identity: Identity;
     merkleProof: MerkleProof;
     merkleDepth: number;
-
-    /**
-     * Encrypted ballot bytes.
-     * This is the payload that will be submitted/published.
-     */
     ciphertext: CiphertextLike;
-
-    /**
-     * Must match the election contract's externalNullifier exactly.
-     */
     externalNullifier: FieldLike;
-
     snarkArtifacts: SnarkArtifacts;
 };
 
-/**
- * Voting-specific helper aligned with your current contract:
- *
- * - message = keccak256(ciphertext) >> 8
- * - scope   = externalNullifier
- */
 export async function createElectionVoteProof(
     params: CreateElectionVoteProofParams
 ): Promise<SemaphoreProof> {
@@ -264,37 +196,17 @@ export type CreateElectionVoteProofViaFastifyParams = {
     fastifyBaseUrl: string;
     electionAddress: string;
     identity: Identity;
-
-    /**
-     * Encrypted ballot bytes.
-     * The proof is bound to hash(ciphertext), not plaintext vote.
-     */
     ciphertext: CiphertextLike;
-
-    /**
-     * Must match the election contract's externalNullifier exactly.
-     */
     externalNullifier: FieldLike;
-
     snarkArtifacts: SnarkArtifacts;
 
-    /**
-     * Fixed depth of the local Semaphore circuit artifacts.
-     * When this is larger than the returned sibling array, missing siblings are zero-padded
-     * by @semaphore-protocol/proof during proof generation.
-     */
+    // Circuit depth from local artifacts. Missing siblings are zero-padded by @semaphore-protocol/proof.
     circuitDepth?: number;
 
     headers?: Record<string, string>;
     signal?: AbortSignal;
 };
 
-/**
- * Convenience helper:
- * - fetch Merkle proof from Fastify
- * - verify proof shape / depth
- * - generate Semaphore proof aligned with the election contract
- */
 export async function createElectionVoteProofViaFastify(
     params: CreateElectionVoteProofViaFastifyParams
 ): Promise<SemaphoreProof> {
@@ -327,7 +239,7 @@ export async function createElectionVoteProofViaFastify(
     const merkleProof = toMerkleProof(dto);
     const effectiveMerkleDepth = Math.max(circuitDepth ?? 0, dto.expectedDepth);
 
-    // Fastify already checks onChainRoot === proof.root and returns 409 if mismatch.
+    // Fastify validates onChainRoot === proof.root and returns 409 on mismatch.
     return createElectionVoteProof({
         identity,
         merkleProof,
