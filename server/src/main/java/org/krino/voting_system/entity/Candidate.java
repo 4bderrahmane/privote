@@ -48,24 +48,14 @@ public class Candidate
         }
     }
 
-    /**
-     * The citizen who is running as a candidate in this election.
-     */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "citizen_id", nullable = false)
     private Citizen citizen;
 
-    /**
-     * The election this candidacy belongs to.
-     */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "election_id", nullable = false)
     private Election election;
 
-    /**
-     * Optional party affiliation.
-     * Nullable to support independent candidates.
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "party_id")
     private Party party;

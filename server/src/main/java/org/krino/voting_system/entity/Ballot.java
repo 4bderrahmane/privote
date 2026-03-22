@@ -58,8 +58,7 @@ public class Ballot
     @Column(name = "block_number")
     private Long blockNumber;
 
-    // Decrypted/plaintext choice after tally.
-    // Must remain null during voting if ballots are encrypted.
+    // Must remain null during voting because ballots are encrypted.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "candidate_id")
     private Candidate candidate;

@@ -1,4 +1,5 @@
 package org.krino.voting_system.entity;
+
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -33,19 +34,9 @@ public class Election
     @Version
     private Long version;
 
-    /**
-     * Stable backend/application identifier for the election.
-     *
-     * This is a good canonical value to use on the client side as the electionKey
-     * for deriving per-election Semaphore identities.
-     */
     @Column(name = "public_id", nullable = false, unique = true, updatable = false)
     private UUID publicId;
 
-    /**
-     * On-chain deployed election contract address.
-     * Nullable before deployment.
-     */
     @Column(name = "contract_address", unique = true, length = 42)
     private String contractAddress;
 
@@ -63,10 +54,6 @@ public class Election
     @Column(columnDefinition = "text")
     private String description;
 
-    /**
-     * Time at which voting started.
-     * Nullable before the election enters voting phase.
-     */
     private Instant startTime;
 
     @Column(name = "end_time", nullable = false)
@@ -76,10 +63,6 @@ public class Election
     @Column(nullable = false, length = 32)
     private ElectionPhase phase;
 
-    /**
-     * On-chain externalNullifier / scope used by the proof system.
-     * Stored as decimal-compatible BigInteger.
-     */
     @Column(name = "external_nullifier", nullable = false, precision = 78, scale = 0)
     private BigInteger externalNullifier;
 
@@ -95,9 +78,6 @@ public class Election
     /**
      * Public key used to encrypt ballots.
      * Stored as raw bytes.
-     *
-     * Make sure this matches the representation expected by the smart contract.
-     * If the contract uses bytes32, then this value should be exactly 32 bytes.
      */
     @Column(name = "encryption_public_key", nullable = false, columnDefinition = "bytea")
     private byte[] encryptionPublicKey;
@@ -107,6 +87,7 @@ public class Election
      * This is intentionally generic and not named "private key", because the system
      * may evolve to threshold decryption or other tally-opening mechanisms.
      */
+    // TODO: threshold encryption may be considered later.
     @Column(name = "decryption_material", columnDefinition = "bytea")
     private byte[] decryptionMaterial;
 

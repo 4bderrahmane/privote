@@ -35,41 +35,22 @@ public class CitizenElectionParticipation
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * The real citizen in the authority/enrollment layer.
-     */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "citizen_id", nullable = false)
     private Citizen citizen;
 
-    /**
-     * The election this participation record belongs to.
-     */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "election_id", nullable = false)
     private Election election;
 
-    /**
-     * Election-specific participation / registration status.
-     *
-     * Be careful with statuses like VOTED or BALLOT_CAST:
-     * those can weaken the privacy boundary if they are derived from
-     * anonymous voting-layer activity.
-     */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private ParticipationStatus status;
 
-    /**
-     * Timestamp for when the citizen was registered / enrolled in this election.
-     */
     @CreationTimestamp
     @Column(name = "registered_at", updatable = false)
     private Instant registeredAt;
 
-    /**
-     * Optional generic last-update timestamp for workflow tracking.
-     */
     @UpdateTimestamp
     @Column(name = "updated_at")
     private Instant updatedAt;

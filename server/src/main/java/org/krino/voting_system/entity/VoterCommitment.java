@@ -50,9 +50,7 @@ public class VoterCommitment
     @JoinColumn(name = "citizen_id", nullable = false)
     private Citizen citizen;
 
-    /**
-     * Election this commitment belongs to.
-     */
+    // Election this commitment belongs to.
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "election_id", nullable = false)
     private Election election;
@@ -69,17 +67,12 @@ public class VoterCommitment
     @Column(name = "identity_commitment", nullable = false, length = 128)
     private String identityCommitment;
 
-    /**
-     * Optional Merkle leaf index once the commitment is inserted on-chain / in the tree.
-     */
+    // Merkle leaf index once the commitment is inserted on-chain / in the tree.
     @Column(name = "merkle_leaf_index")
     private Long merkleLeafIndex;
 
-    /**
-     * Blockchain transaction hash that inserted the commitment.
-     *
-     * Not unique: multiple commitments may be added in one batch transaction.
-     */
+    // Blockchain transaction hash that inserted the commitment.
+    // Not unique: multiple commitments may be added in one batch transaction.
     @Column(name = "transaction_hash", length = 66)
     private String transactionHash;
 

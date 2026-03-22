@@ -66,15 +66,6 @@ public class Citizen
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified = false;
 
-    /**
-     * Global system-level eligibility flag.
-     *
-     * Keep this only if it means something like:
-     * "this citizen is generally allowed to participate in the voting system".
-     *
-     * Election-specific eligibility should live in an election-specific entity
-     * such as CitizenElectionParticipation.
-     */
     @Builder.Default
     @Column(name = "is_eligible", nullable = false)
     private boolean isEligible = true;

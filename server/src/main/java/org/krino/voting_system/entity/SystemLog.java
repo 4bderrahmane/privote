@@ -27,10 +27,6 @@ public class SystemLog
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * Optional actor who performed the action.
-     * Nullable if some logs are system-generated.
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "admin_id")
     private Citizen admin;
@@ -38,6 +34,7 @@ public class SystemLog
     /**
      * Human-readable action name, e.g.:
      * "CREATE_ELECTION", "APPROVE_CANDIDATE", "ADD_VOTER_COMMITMENT"
+     * We can later using an enum for all possible actions for better readability.
      */
     @Column(name = "action", nullable = false, length = 128)
     private String action;
@@ -46,21 +43,15 @@ public class SystemLog
     @Column(name = "action_status", nullable = false, length = 32)
     private SystemLogActionStatus actionStatus;
 
-    /**
-     * Optional target type, e.g. "Election", "Candidate", "Citizen".
-     */
+    // Optional target type: "Election", "Candidate", "Citizen".
     @Column(name = "target_type", length = 64)
     private String targetType;
 
-    /**
-     * Optional target identifier as string so different entity id types can fit.
-     */
+    // Optional target identifier as string so different entity id types can fit.
     @Column(name = "target_id", length = 128)
     private String targetId;
 
-    /**
-     * Optional extra details or error message.
-     */
+    // Optional extra details or error message.
     @Column(name = "details", columnDefinition = "text")
     private String details;
 
