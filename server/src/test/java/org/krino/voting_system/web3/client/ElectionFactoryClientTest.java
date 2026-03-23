@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import org.krino.voting_system.web3.config.Web3jProperties;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.Web3jService;
-import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.Request;
 import org.web3j.protocol.core.Response;
 import org.web3j.protocol.core.methods.response.EthGetCode;
@@ -12,10 +11,8 @@ import org.web3j.protocol.websocket.events.Notification;
 
 import java.io.IOException;
 import java.lang.reflect.Proxy;
-import java.math.BigInteger;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
