@@ -18,5 +18,7 @@ WORKDIR /home/springuser
 ARG JAR_FILE=/workspace/target/*.jar
 COPY --from=build ${JAR_FILE} ./app.jar
 
-EXPOSE 8080
+ENV SPRING_PROFILES_ACTIVE=prod
+
+EXPOSE 9090
 ENTRYPOINT ["java", "-jar", "./app.jar"]
