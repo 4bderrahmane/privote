@@ -1,0 +1,11 @@
+.git
+.gitignore
+.idea
+target
+.env
+*.iml
+*.log
+docker-compose.yaml
+project_documentation.tex
+HELP.md
+ddl_*.sql
