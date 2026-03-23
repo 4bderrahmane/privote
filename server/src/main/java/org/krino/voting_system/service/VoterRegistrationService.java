@@ -1,6 +1,5 @@
 package org.krino.voting_system.service;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.krino.voting_system.dto.election.VoterRegistrationRequestDto;
 import org.krino.voting_system.dto.election.VoterRegistrationResponseDto;
@@ -17,7 +16,9 @@ import org.krino.voting_system.repository.CitizenRepository;
 import org.krino.voting_system.repository.ElectionRepository;
 import org.krino.voting_system.repository.VoterCommitmentRepository;
 import org.krino.voting_system.web3.client.ElectionClient;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionOperations;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import java.math.BigInteger;
@@ -28,7 +29,6 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class VoterRegistrationService
 {
@@ -37,6 +37,7 @@ public class VoterRegistrationService
     private final CitizenElectionParticipationRepository participationRepository;
     private final VoterCommitmentRepository voterCommitmentRepository;
     private final ElectionClient electionClient;
+    private final TransactionOperations transactionOperations;
 
     public VoterRegistrationResponseDto registerMyCommitment(
             UUID electionPublicId,
@@ -51,73 +52,187 @@ public class VoterRegistrationService
 
         BigInteger commitmentValue = parseIdentityCommitment(request.getIdentityCommitment());
         String normalizedCommitment = commitmentValue.toString();
-
-        Election election = resolveElection(electionPublicId);
-        requireRegistrationOpen(election);
-
-        Citizen citizen = resolveCitizen(citizenKeycloakId);
-        requireCitizenEligible(citizen);
-
-        CitizenElectionParticipation participation = participationRepository
-                .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
-                .orElseGet(() -> newParticipation(citizen, election));
-
-        VoterCommitment commitment = voterCommitmentRepository
-                .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
-                .orElseGet(() -> newCommitment(citizen, election));
-
-        if (commitment.getIdentityCommitment() != null
-                && !commitment.getIdentityCommitment().equals(normalizedCommitment))
+        PreparedRegistration prepared;
+        try
         {
-            throw new IllegalStateException("Citizen already registered a different identityCommitment for this election");
+            prepared = preparePendingRegistration(electionPublicId, citizenKeycloakId, normalizedCommitment);
+        }
+        catch (DataIntegrityViolationException ex)
+        {
+            throw new IllegalStateException("identityCommitment is already registered for this election", ex);
         }
 
-        voterCommitmentRepository.findByElectionPublicIdAndIdentityCommitment(electionPublicId, normalizedCommitment)
-                .ifPresent(existing ->
-                {
-                    UUID existingCitizen = existing.getCitizen().getKeycloakId();
-                    if (existingCitizen != null && !existingCitizen.equals(citizenKeycloakId))
-                    {
-                        throw new IllegalStateException("identityCommitment is already registered for this election");
-                    }
-                });
-
-        commitment.setIdentityCommitment(normalizedCommitment);
-        commitment.setStatus(CommitmentStatus.PENDING);
-        commitment.setCitizen(citizen);
-        commitment.setElection(election);
-        participation.setStatus(ParticipationStatus.REGISTERED);
-        participation.setCitizen(citizen);
-        participation.setElection(election);
-
-        BigInteger groupId = requireGroupId(election);
-        String contractAddress = requireContractAddress(election);
-
-        participationRepository.save(participation);
-        voterCommitmentRepository.save(commitment);
+        if (prepared.alreadyOnChain())
+        {
+            return getMyRegistration(electionPublicId, citizenKeycloakId);
+        }
 
         try
         {
-            if (!electionClient.hasMember(contractAddress, groupId, commitmentValue))
+            ChainEnrollment enrollment = enrollCommitmentOnChain(
+                    prepared.contractAddress(),
+                    prepared.groupId(),
+                    commitmentValue
+            );
+            VoterRegistrationResponseDto response = finalizeSuccessfulRegistration(
+                    prepared,
+                    enrollment.transactionHash(),
+                    enrollment.merkleLeafIndex()
+            );
+            if (response == null)
             {
-                TransactionReceipt receipt = electionClient.addVoter(contractAddress, commitmentValue);
-                commitment.setTransactionHash(receipt == null ? null : receipt.getTransactionHash());
+                throw new IllegalStateException("Failed to persist voter commitment");
             }
-
-            commitment.setMerkleLeafIndex(toLongOrNull(electionClient.indexOf(contractAddress, groupId, commitmentValue)));
-            commitment.setStatus(CommitmentStatus.ON_CHAIN);
-
-            participationRepository.save(participation);
-            voterCommitmentRepository.save(commitment);
-
-            return toResponse(election, citizen, participation, commitment);
+            return response;
         }
         catch (Exception ex)
         {
-            commitment.setStatus(CommitmentStatus.FAILED);
-            voterCommitmentRepository.save(commitment);
+            markCommitmentFailed(prepared.electionPublicId(), prepared.citizenKeycloakId());
             throw new IllegalStateException("Failed to enroll voter commitment on chain", ex);
         }
+    }
+
+    private PreparedRegistration preparePendingRegistration(
+            UUID electionPublicId,
+            UUID citizenKeycloakId,
+            String normalizedCommitment
+    )
+    {
+        PreparedRegistration prepared = transactionOperations.execute(status -> {
+            Election election = resolveElection(electionPublicId);
+            requireRegistrationOpen(election);
+            String contractAddress = requireContractAddress(election);
+            BigInteger groupId = requireGroupId(election);
+
+            Citizen citizen = resolveCitizen(citizenKeycloakId);
+            requireCitizenEligible(citizen);
+
+            CitizenElectionParticipation participation = participationRepository
+                    .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
+                    .orElseGet(() -> newParticipation(citizen, election));
+
+            VoterCommitment commitment = voterCommitmentRepository
+                    .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
+                    .orElseGet(() -> newCommitment(citizen, election));
+
+            if (commitment.getIdentityCommitment() != null
+                    && !commitment.getIdentityCommitment().equals(normalizedCommitment))
+            {
+                throw new IllegalStateException("Citizen already registered a different identityCommitment for this election");
+            }
+
+            voterCommitmentRepository.findByElectionPublicIdAndIdentityCommitment(electionPublicId, normalizedCommitment)
+                    .ifPresent(existing -> {
+                        UUID existingCitizen = existing.getCitizen().getKeycloakId();
+                        if (existingCitizen != null && !existingCitizen.equals(citizenKeycloakId))
+                        {
+                            throw new IllegalStateException("identityCommitment is already registered for this election");
+                        }
+                    });
+
+            participation.setStatus(ParticipationStatus.REGISTERED);
+            participation.setCitizen(citizen);
+            participation.setElection(election);
+            participationRepository.save(participation);
+
+            if (commitment.getStatus() == CommitmentStatus.ON_CHAIN
+                    && normalizedCommitment.equals(commitment.getIdentityCommitment()))
+            {
+                return new PreparedRegistration(
+                        electionPublicId,
+                        citizenKeycloakId,
+                        contractAddress,
+                        groupId,
+                        true
+                );
+            }
+
+            commitment.setIdentityCommitment(normalizedCommitment);
+            commitment.setStatus(CommitmentStatus.PENDING);
+            commitment.setCitizen(citizen);
+            commitment.setElection(election);
+            voterCommitmentRepository.save(commitment);
+
+            return new PreparedRegistration(
+                    electionPublicId,
+                    citizenKeycloakId,
+                    contractAddress,
+                    groupId,
+                    false
+            );
+        });
+
+        if (prepared == null)
+        {
+            throw new IllegalStateException("Failed to prepare voter registration");
+        }
+        return prepared;
+    }
+
+    private ChainEnrollment enrollCommitmentOnChain(
+            String contractAddress,
+            BigInteger groupId,
+            BigInteger commitmentValue
+    ) throws Exception
+    {
+        String transactionHash = null;
+        if (!electionClient.hasMember(contractAddress, groupId, commitmentValue))
+        {
+            TransactionReceipt receipt = electionClient.addVoter(contractAddress, commitmentValue);
+            transactionHash = normalizeHex(receipt == null ? null : receipt.getTransactionHash());
+            if (transactionHash == null)
+            {
+                throw new IllegalStateException("Blockchain transaction hash is required when adding voter commitment");
+            }
+        }
+
+        Long merkleLeafIndex = toLongOrNull(electionClient.indexOf(contractAddress, groupId, commitmentValue));
+        return new ChainEnrollment(transactionHash, merkleLeafIndex);
+    }
+
+    private VoterRegistrationResponseDto finalizeSuccessfulRegistration(
+            PreparedRegistration prepared,
+            String transactionHash,
+            Long merkleLeafIndex
+    )
+    {
+        return transactionOperations.execute(status -> {
+            Election election = resolveElection(prepared.electionPublicId());
+            Citizen citizen = resolveCitizen(prepared.citizenKeycloakId());
+            VoterCommitment commitment = voterCommitmentRepository
+                    .findByCitizenKeycloakIdAndElectionPublicId(prepared.citizenKeycloakId(), prepared.electionPublicId())
+                    .orElseGet(() -> newCommitment(citizen, election));
+
+            commitment.setCitizen(citizen);
+            commitment.setElection(election);
+            commitment.setStatus(CommitmentStatus.ON_CHAIN);
+            commitment.setMerkleLeafIndex(merkleLeafIndex);
+            if (transactionHash != null)
+            {
+                commitment.setTransactionHash(transactionHash);
+            }
+            VoterCommitment savedCommitment = voterCommitmentRepository.save(commitment);
+
+            CitizenElectionParticipation participation = participationRepository
+                    .findByCitizenKeycloakIdAndElectionPublicId(prepared.citizenKeycloakId(), prepared.electionPublicId())
+                    .orElseGet(() -> newParticipation(citizen, election));
+            participation.setCitizen(citizen);
+            participation.setElection(election);
+            participation.setStatus(ParticipationStatus.REGISTERED);
+            CitizenElectionParticipation savedParticipation = participationRepository.save(participation);
+
+            return toResponse(election, citizen, savedParticipation, savedCommitment);
+        });
+    }
+
+    private void markCommitmentFailed(UUID electionPublicId, UUID citizenKeycloakId)
+    {
+        transactionOperations.executeWithoutResult(status -> voterCommitmentRepository
+                .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
+                .ifPresent(commitment -> {
+                    commitment.setStatus(CommitmentStatus.FAILED);
+                    voterCommitmentRepository.save(commitment);
+                }));
     }
 
     public VoterRegistrationResponseDto getMyRegistration(UUID electionPublicId, UUID citizenKeycloakId)
@@ -249,6 +364,25 @@ public class VoterRegistrationService
         }
     }
 
+    private static String normalizeHex(String value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        String normalized = value.trim();
+        if (normalized.isEmpty())
+        {
+            return null;
+        }
+        if (!normalized.startsWith("0x"))
+        {
+            normalized = "0x" + normalized;
+        }
+        return normalized.toLowerCase();
+    }
+
     private static CitizenElectionParticipation newParticipation(Citizen citizen, Election election)
     {
         CitizenElectionParticipation participation = new CitizenElectionParticipation();
@@ -288,5 +422,22 @@ public class VoterRegistrationService
                 commitment.getTransactionHash(),
                 registeredAt
         );
+    }
+
+    private record PreparedRegistration(
+            UUID electionPublicId,
+            UUID citizenKeycloakId,
+            String contractAddress,
+            BigInteger groupId,
+            boolean alreadyOnChain
+    )
+    {
+    }
+
+    private record ChainEnrollment(
+            String transactionHash,
+            Long merkleLeafIndex
+    )
+    {
     }
 }

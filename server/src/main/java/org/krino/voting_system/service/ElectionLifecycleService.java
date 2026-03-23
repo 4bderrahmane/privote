@@ -1,6 +1,5 @@
 package org.krino.voting_system.service;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.krino.voting_system.entity.Election;
 import org.krino.voting_system.entity.enums.CandidateStatus;
@@ -15,7 +14,6 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class ElectionLifecycleService
 {

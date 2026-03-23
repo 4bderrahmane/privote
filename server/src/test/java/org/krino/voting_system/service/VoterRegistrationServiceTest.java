@@ -16,6 +16,9 @@ import org.krino.voting_system.repository.CitizenRepository;
 import org.krino.voting_system.repository.ElectionRepository;
 import org.krino.voting_system.repository.VoterCommitmentRepository;
 import org.krino.voting_system.web3.client.ElectionClient;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionOperations;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import java.lang.reflect.Proxy;
@@ -85,7 +88,8 @@ class VoterRegistrationServiceTest
                     {
                         return BigInteger.valueOf(7);
                     }
-                }
+                },
+                transactionOperationsNoOp()
         );
 
         VoterRegistrationResponseDto response = service.registerMyCommitment(
@@ -143,7 +147,8 @@ class VoterRegistrationServiceTest
                     {
                         return BigInteger.valueOf(3);
                     }
-                }
+                },
+                transactionOperationsNoOp()
         );
 
         VoterRegistrationResponseDto response = service.registerMyCommitment(
@@ -170,7 +175,8 @@ class VoterRegistrationServiceTest
                 citizenRepositoryStub(),
                 participationRepositoryStub(),
                 voterCommitmentRepositoryStub(),
-                new ElectionClient(null, null, null)
+                new ElectionClient(null, null, null),
+                transactionOperationsNoOp()
         );
 
         IllegalStateException ex = assertThrows(
@@ -203,7 +209,8 @@ class VoterRegistrationServiceTest
                     {
                         throw new IllegalStateException("rpc unavailable");
                     }
-                }
+                },
+                transactionOperationsNoOp()
         );
 
         IllegalStateException ex = assertThrows(
@@ -370,5 +377,17 @@ class VoterRegistrationServiceTest
     private static String commitmentKey(UUID citizenKeycloakId, UUID electionPublicId)
     {
         return citizenKeycloakId + "::" + electionPublicId;
+    }
+
+    private static TransactionOperations transactionOperationsNoOp()
+    {
+        return new TransactionOperations()
+        {
+            @Override
+            public <T> T execute(TransactionCallback<T> action)
+            {
+                return action.doInTransaction(new SimpleTransactionStatus());
+            }
+        };
     }
 }
