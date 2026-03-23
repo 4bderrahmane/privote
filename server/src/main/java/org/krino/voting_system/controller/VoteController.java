@@ -1,7 +1,9 @@
 package org.krino.voting_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.krino.voting_system.dto.ballot.BallotCastRequestDto;
+import org.krino.voting_system.security.AuthenticatedActorResolver;
 import org.krino.voting_system.dto.ballot.BallotCastResponseDto;
 import org.krino.voting_system.service.VoteService;
 import org.springframework.http.ResponseEntity;
@@ -17,17 +19,18 @@ import java.util.UUID;
 public class VoteController
 {
     private final VoteService voteService;
+    private final AuthenticatedActorResolver authenticatedActorResolver;
 
     @PostMapping("/me")
     public ResponseEntity<BallotCastResponseDto> castMyVote(
             @PathVariable UUID electionUuid,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestBody BallotCastRequestDto request
+            @Valid @RequestBody BallotCastRequestDto request
     )
     {
         return ResponseEntity.ok(voteService.castMyVote(
                 electionUuid,
-                UUID.fromString(jwt.getSubject()),
+                authenticatedActorResolver.actorId(jwt),
                 request
         ));
     }

@@ -3,7 +3,7 @@ package org.krino.voting_system.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.krino.voting_system.entity.enums.SystemLogActionStatus;
+import org.krino.voting_system.entity.enums.SystemLogOutcome;
 
 import java.time.Instant;
 
@@ -17,7 +17,7 @@ import java.time.Instant;
         indexes = {
                 @Index(name = "idx_system_logs_admin", columnList = "admin_id"),
                 @Index(name = "idx_system_logs_created_at", columnList = "created_at"),
-                @Index(name = "idx_system_logs_status", columnList = "action_status")
+                @Index(name = "idx_system_logs_outcome", columnList = "outcome")
         }
 )
 public class SystemLog
@@ -33,15 +33,14 @@ public class SystemLog
 
     /**
      * Human-readable action name, e.g.:
-     * "CREATE_ELECTION", "APPROVE_CANDIDATE", "ADD_VOTER_COMMITMENT"
-     * We can later using an enum for all possible actions for better readability.
+     * "CREATE_ELECTION", "START_ELECTION", "DELETE_CANDIDATE".
      */
     @Column(name = "action", nullable = false, length = 128)
     private String action;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "action_status", nullable = false, length = 32)
-    private SystemLogActionStatus actionStatus;
+    @Column(name = "outcome", length = 32)
+    private SystemLogOutcome outcome;
 
     // Optional target type: "Election", "Candidate", "Citizen".
     @Column(name = "target_type", length = 64)

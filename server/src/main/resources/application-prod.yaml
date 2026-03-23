@@ -1,0 +1,29 @@
+server:
+  forward-headers-strategy: framework
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+logging:
+  threshold:
+    console: INFO
+  level:
+    root: INFO
+    HTTP_ACCESS: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    org.hibernate.tool.hbm2ddl: WARN
+    org.springframework.boot.context.properties: INFO
+  structured:
+    format:
+      console: logstash
+    json:
+      context:
+        include: true
+        prefix: mdc.
+      stacktrace:
+        max-length: 16384
+        include-hashes: true

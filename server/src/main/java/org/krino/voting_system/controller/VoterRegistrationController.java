@@ -1,8 +1,10 @@
 package org.krino.voting_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.krino.voting_system.dto.election.VoterRegistrationRequestDto;
 import org.krino.voting_system.dto.election.VoterRegistrationResponseDto;
+import org.krino.voting_system.security.AuthenticatedActorResolver;
 import org.krino.voting_system.service.VoterRegistrationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,17 +21,18 @@ import java.util.UUID;
 public class VoterRegistrationController
 {
     private final VoterRegistrationService voterRegistrationService;
+    private final AuthenticatedActorResolver authenticatedActorResolver;
 
     @PostMapping("/me")
     public ResponseEntity<VoterRegistrationResponseDto> registerMe(
             @PathVariable UUID electionUuid,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestBody VoterRegistrationRequestDto request
+            @Valid @RequestBody VoterRegistrationRequestDto request
     )
     {
         return ResponseEntity.ok(voterRegistrationService.registerMyCommitment(
                 electionUuid,
-                UUID.fromString(jwt.getSubject()),
+                authenticatedActorResolver.actorId(jwt),
                 request
         ));
     }
@@ -42,7 +45,7 @@ public class VoterRegistrationController
     {
         return ResponseEntity.ok(voterRegistrationService.getMyRegistration(
                 electionUuid,
-                UUID.fromString(jwt.getSubject())
+                authenticatedActorResolver.actorId(jwt)
         ));
     }
 

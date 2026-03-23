@@ -1,45 +1,68 @@
 package org.krino.voting_system.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.krino.voting_system.dto.party.PartyCreateDto;
 import org.krino.voting_system.dto.party.PartyPatchDto;
 import org.krino.voting_system.entity.Party;
+import org.krino.voting_system.security.AuthenticatedActorResolver;
+import org.krino.voting_system.service.PartyAdminService;
 import org.krino.voting_system.service.PartyService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/parties")
 @RequiredArgsConstructor
 public class PartyController
 {
     private final PartyService partyService;
+    private final PartyAdminService partyAdminService;
+    private final AuthenticatedActorResolver authenticatedActorResolver;
 
     @PostMapping("/create")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Party> createParty(@RequestBody PartyCreateDto party)
+    public ResponseEntity<Party> createParty(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody PartyCreateDto party)
     {
-        Party createdParty = partyService.createParty(party);
+        UUID actorId = authenticatedActorResolver.actorId(jwt);
+        log.debug("Admin request createParty actorId={}", actorId);
+        Party createdParty = partyAdminService.createParty(actorId, party);
         return ResponseEntity.ok(createdParty);
     }
 
     @PutMapping("/{uuid}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Party> updateParty(@PathVariable UUID uuid, @RequestBody PartyCreateDto party)
+    public ResponseEntity<Party> updateParty(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID uuid,
+            @Valid @RequestBody PartyCreateDto party
+    )
     {
-        Party updatedParty = partyService.updateParty(uuid, party);
+        UUID actorId = authenticatedActorResolver.actorId(jwt);
+        log.debug("Admin request updateParty actorId={} partyUuid={}", actorId, uuid);
+        Party updatedParty = partyAdminService.updateParty(actorId, uuid, party);
         return ResponseEntity.ok(updatedParty);
     }
 
     @PatchMapping("/{uuid}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Party> patchParty(@PathVariable UUID uuid, @RequestBody PartyPatchDto party)
+    public ResponseEntity<Party> patchParty(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID uuid,
+            @Valid @RequestBody PartyPatchDto party
+    )
     {
-        Party patchedParty = partyService.patchParty(uuid, party);
+        UUID actorId = authenticatedActorResolver.actorId(jwt);
+        log.debug("Admin request patchParty actorId={} partyUuid={}", actorId, uuid);
+        Party patchedParty = partyAdminService.patchParty(actorId, uuid, party);
         return ResponseEntity.ok(patchedParty);
     }
 
@@ -52,9 +75,11 @@ public class PartyController
 
     @DeleteMapping("/{uuid}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deletePartyByUUID(@PathVariable UUID uuid)
+    public ResponseEntity<Void> deletePartyByUUID(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID uuid)
     {
-        partyService.deletePartyByPublicId(uuid);
+        UUID actorId = authenticatedActorResolver.actorId(jwt);
+        log.debug("Admin request deleteParty actorId={} partyUuid={}", actorId, uuid);
+        partyAdminService.deleteParty(actorId, uuid);
         return ResponseEntity.noContent().build();
     }
 
