@@ -16,6 +16,8 @@ spring:
 
 sync:
   secret: test-secret
+  max-skew-seconds: 300
+  replay-window-seconds: 600
 
 keycloak-admin:
   server-url: http://localhost:8080
