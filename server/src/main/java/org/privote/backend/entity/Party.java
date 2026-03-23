@@ -2,7 +2,10 @@ package org.privote.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,19 +31,10 @@ public class Party
 
     @Column(name = "public_id", nullable = false, unique = true, updatable = false)
     private UUID publicId;
-
-    @PrePersist
-    void prePersist()
-    {
-        if (publicId == null) publicId = UUID.randomUUID();
-    }
-
     @Column(nullable = false)
     private String name;
-
     @Column(columnDefinition = "text")
     private String description;
-
     @ManyToMany
     @JoinTable(
             name = "party_members",
@@ -49,6 +43,12 @@ public class Party
     )
     @JsonIgnore
     private List<Citizen> members = new ArrayList<>();
+
+    @PrePersist
+    void prePersist()
+    {
+        if (publicId == null) publicId = UUID.randomUUID();
+    }
 
     @Override
     public boolean equals(Object o)

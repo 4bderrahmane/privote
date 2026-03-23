@@ -1,10 +1,10 @@
 package org.privote.backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.privote.backend.entity.enums.CandidateStatus;
@@ -38,6 +38,24 @@ public class Candidate
 
     @Column(name = "public_id", nullable = false, unique = true, updatable = false)
     private UUID publicId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "citizen_id", nullable = false)
+    private Citizen citizen;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "election_id", nullable = false)
+    private Election election;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "party_id")
+    private Party party;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    private CandidateStatus status = CandidateStatus.PENDING_APPROVAL;
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false, nullable = false)
+    private Instant createdAt;
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private Instant updatedAt;
 
     @PrePersist
     void prePersist()
@@ -47,30 +65,6 @@ public class Candidate
             publicId = UUID.randomUUID();
         }
     }
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "citizen_id", nullable = false)
-    private Citizen citizen;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "election_id", nullable = false)
-    private Election election;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "party_id")
-    private Party party;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 32)
-    private CandidateStatus status = CandidateStatus.PENDING_APPROVAL;
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false, nullable = false)
-    private Instant createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private Instant updatedAt;
 
     @Override
     public boolean equals(Object o)
