@@ -1,6 +1,5 @@
 package org.krino.voting_system.service;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.krino.voting_system.dto.ballot.BallotCastRequestDto;
 import org.krino.voting_system.dto.ballot.BallotCastResponseDto;
@@ -18,7 +17,9 @@ import org.krino.voting_system.repository.CitizenElectionParticipationRepository
 import org.krino.voting_system.repository.ElectionRepository;
 import org.krino.voting_system.repository.VoterCommitmentRepository;
 import org.krino.voting_system.web3.client.ElectionClient;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionOperations;
 import org.web3j.crypto.Hash;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.utils.Numeric;
@@ -31,7 +32,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class VoteService
 {
@@ -40,6 +40,7 @@ public class VoteService
     private final CitizenElectionParticipationRepository participationRepository;
     private final BallotRepository ballotRepository;
     private final ElectionClient electionClient;
+    private final TransactionOperations transactionOperations;
 
     public BallotCastResponseDto castMyVote(
             UUID electionPublicId,
@@ -57,16 +58,6 @@ public class VoteService
                 .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
                 .orElseThrow(() -> new IllegalStateException("Citizen has not registered a voting identity for this election"));
         requireOnChainCommitment(commitment);
-
-        CitizenElectionParticipation participation = participationRepository
-                .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
-                .orElseGet(() -> {
-                    CitizenElectionParticipation created = new CitizenElectionParticipation();
-                    created.setCitizen(commitment.getCitizen());
-                    created.setElection(election);
-                    created.setStatus(ParticipationStatus.REGISTERED);
-                    return created;
-                });
 
         BigInteger nullifier = parsePositiveInteger(request.getNullifier(), "nullifier");
         List<BigInteger> proof = parseProof(request.getProof());
@@ -90,33 +81,92 @@ public class VoteService
                     nullifier,
                     proof
             );
+            String transactionHash = requireTransactionHash(receipt);
+            Long blockNumber = toLongOrNull(receipt == null ? null : receipt.getBlockNumber());
 
-            Ballot ballot = new Ballot();
-            ballot.setElection(election);
-            ballot.setCiphertext(request.getCiphertext().clone());
-            ballot.setCiphertextHash(normalizeHex(Numeric.toHexString(Hash.sha3(request.getCiphertext()))));
-            ballot.setNullifier(normalizedNullifier);
-            ballot.setZkProof(serializeProof(proof));
-            ballot.setTransactionHash(normalizeHex(receipt == null ? null : receipt.getTransactionHash()));
-            ballot.setBlockNumber(toLongOrNull(receipt == null ? null : receipt.getBlockNumber()));
-
-            Ballot storedBallot = ballotRepository.saveAndFlush(ballot);
-            participation.setStatus(ParticipationStatus.CAST);
-            participationRepository.save(participation);
-            return BallotCastResponseDto.fromEntity(storedBallot);
+            BallotCastResponseDto response = persistCastVote(
+                    electionPublicId,
+                    citizenKeycloakId,
+                    request.getCiphertext(),
+                    proof,
+                    normalizedNullifier,
+                    transactionHash,
+                    blockNumber
+            );
+            if (response == null)
+            {
+                throw new IllegalStateException("Failed to persist cast vote");
+            }
+            return response;
         }
         catch (VoteAlreadyCastException ex)
         {
             throw ex;
         }
+        catch (DataIntegrityViolationException ex)
+        {
+            throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
+        }
         catch (Exception ex)
         {
+            if (isDataConflict(ex))
+            {
+                throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
+            }
             if (ballotRepository.findByElectionPublicIdAndNullifier(electionPublicId, normalizedNullifier).isPresent())
             {
                 throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
             }
             throw new IllegalStateException("Failed to cast vote on chain: " + rootCauseMessage(ex), ex);
         }
+    }
+
+    private BallotCastResponseDto persistCastVote(
+            UUID electionPublicId,
+            UUID citizenKeycloakId,
+            byte[] ciphertext,
+            List<BigInteger> proof,
+            String normalizedNullifier,
+            String transactionHash,
+            Long blockNumber
+    )
+    {
+        return transactionOperations.execute(status -> {
+            Election election = resolveElection(electionPublicId);
+            VoterCommitment commitment = voterCommitmentRepository
+                    .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
+                    .orElseThrow(() -> new IllegalStateException("Citizen has not registered a voting identity for this election"));
+            requireOnChainCommitment(commitment);
+
+            CitizenElectionParticipation participation = participationRepository
+                    .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
+                    .orElseGet(() -> {
+                        CitizenElectionParticipation created = new CitizenElectionParticipation();
+                        created.setCitizen(commitment.getCitizen());
+                        created.setElection(election);
+                        created.setStatus(ParticipationStatus.REGISTERED);
+                        return created;
+                    });
+
+            if (ballotRepository.findByElectionPublicIdAndNullifier(electionPublicId, normalizedNullifier).isPresent())
+            {
+                throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
+            }
+
+            Ballot ballot = new Ballot();
+            ballot.setElection(election);
+            ballot.setCiphertext(ciphertext.clone());
+            ballot.setCiphertextHash(normalizeHex(Numeric.toHexString(Hash.sha3(ciphertext))));
+            ballot.setNullifier(normalizedNullifier);
+            ballot.setZkProof(serializeProof(proof));
+            ballot.setTransactionHash(transactionHash);
+            ballot.setBlockNumber(blockNumber);
+
+            Ballot storedBallot = ballotRepository.saveAndFlush(ballot);
+            participation.setStatus(ParticipationStatus.CAST);
+            participationRepository.save(participation);
+            return BallotCastResponseDto.fromEntity(storedBallot);
+        });
     }
 
     private Election resolveElection(UUID electionPublicId)
@@ -237,6 +287,30 @@ public class VoteService
         {
             return null;
         }
+    }
+
+    private static String requireTransactionHash(TransactionReceipt receipt)
+    {
+        String transactionHash = normalizeHex(receipt == null ? null : receipt.getTransactionHash());
+        if (transactionHash == null)
+        {
+            throw new IllegalStateException("Blockchain transaction hash is required in the vote receipt");
+        }
+        return transactionHash;
+    }
+
+    private static boolean isDataConflict(Throwable throwable)
+    {
+        Throwable current = throwable;
+        while (current != null)
+        {
+            if (current instanceof DataIntegrityViolationException)
+            {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private static String normalizeHex(String value)

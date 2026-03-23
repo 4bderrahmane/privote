@@ -18,6 +18,9 @@ import org.krino.voting_system.repository.CitizenElectionParticipationRepository
 import org.krino.voting_system.repository.ElectionRepository;
 import org.krino.voting_system.repository.VoterCommitmentRepository;
 import org.krino.voting_system.web3.client.ElectionClient;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionOperations;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import java.lang.reflect.Proxy;
@@ -97,7 +100,8 @@ class VoteServiceTest
                         receipt.setBlockNumber("42");
                         return receipt;
                     }
-                }
+                },
+                transactionOperationsNoOp()
         );
 
         BallotCastResponseDto response = voteService.castMyVote(
@@ -136,7 +140,8 @@ class VoteServiceTest
                 commitmentRepositoryStub(),
                 participationRepositoryStub(),
                 ballotRepositoryStub(),
-                new ElectionClient(null, null, null)
+                new ElectionClient(null, null, null),
+                transactionOperationsNoOp()
         );
 
         IllegalStateException ex = assertThrows(
@@ -175,7 +180,8 @@ class VoteServiceTest
                 commitmentRepositoryStub(),
                 participationRepositoryStub(),
                 ballotRepositoryStub(),
-                new ElectionClient(null, null, null)
+                new ElectionClient(null, null, null),
+                transactionOperationsNoOp()
         );
 
         VoteAlreadyCastException ex = assertThrows(
@@ -184,6 +190,52 @@ class VoteServiceTest
         );
 
         assertEquals("A vote has already been cast for this election identity", ex.getMessage());
+    }
+
+    @Test
+    void castMyVoteFailsWhenChainReceiptHasNoTransactionHash()
+    {
+        UUID electionPublicId = UUID.randomUUID();
+        UUID citizenKeycloakId = UUID.randomUUID();
+        Election election = votingElection(electionPublicId);
+        elections.put(electionPublicId, election);
+
+        Citizen citizen = Citizen.builder().keycloakId(citizenKeycloakId).build();
+        VoterCommitment commitment = new VoterCommitment();
+        commitment.setCitizen(citizen);
+        commitment.setElection(election);
+        commitment.setIdentityCommitment("111");
+        commitment.setStatus(CommitmentStatus.ON_CHAIN);
+        commitments.put(commitmentKey(citizenKeycloakId, electionPublicId), commitment);
+
+        VoteService voteService = new VoteService(
+                electionRepositoryStub(),
+                commitmentRepositoryStub(),
+                participationRepositoryStub(),
+                ballotRepositoryStub(),
+                new ElectionClient(null, null, null)
+                {
+                    @Override
+                    public boolean isNullifierUsed(String electionAddress, BigInteger nullifierHash)
+                    {
+                        return false;
+                    }
+
+                    @Override
+                    public TransactionReceipt castVote(String electionAddress, byte[] ciphertext, BigInteger nullifier, java.util.List<BigInteger> proof)
+                    {
+                        return new TransactionReceipt();
+                    }
+                },
+                transactionOperationsNoOp()
+        );
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> voteService.castMyVote(electionPublicId, citizenKeycloakId, request("222"))
+        );
+
+        assertEquals("Failed to cast vote on chain: Blockchain transaction hash is required in the vote receipt", ex.getMessage());
     }
 
     private ElectionRepository electionRepositoryStub()
@@ -303,5 +355,17 @@ class VoteServiceTest
     private static String commitmentKey(UUID citizenKeycloakId, UUID electionPublicId)
     {
         return citizenKeycloakId + "::" + electionPublicId;
+    }
+
+    private static TransactionOperations transactionOperationsNoOp()
+    {
+        return new TransactionOperations()
+        {
+            @Override
+            public <T> T execute(TransactionCallback<T> action)
+            {
+                return action.doInTransaction(new SimpleTransactionStatus());
+            }
+        };
     }
 }
