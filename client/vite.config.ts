@@ -22,6 +22,7 @@ export default defineConfig({
       '@pages': path.resolve(__dirname, "src/shared/pages"),
       '@shared-types': path.resolve(__dirname, "src/shared/types"),
       '@services': path.resolve(__dirname, "src/shared/services"),
+      '@public': path.resolve(__dirname, "public"),
     },
   },
 });
