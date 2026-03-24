@@ -8,10 +8,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @SpringBootApplication
 @ConfigurationPropertiesScan
-public class VotingSystemApplication
+public class PrivoteApplication
 {
     public static void main(String[] args)
     {
-        SpringApplication.run(VotingSystemApplication.class, args);
+        SpringApplication.run(PrivoteApplication.class, args);
     }
 }
