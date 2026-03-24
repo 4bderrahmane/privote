@@ -14,6 +14,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class KeycloakRoleConverterTest
 {
+    private static Jwt jwtWithClaims(Map<String, Object> claims)
+    {
+        Jwt.Builder builder = Jwt.withTokenValue("token")
+                .header("alg", "none");
+
+        claims.forEach(builder::claim);
+        return builder.build();
+    }
+
+    private static Set<String> authorityNames(JwtAuthenticationToken authentication)
+    {
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
     @Test
     void mapsRealmAndConfiguredClientRoles()
     {
@@ -67,21 +83,5 @@ class KeycloakRoleConverterTest
         JwtAuthenticationToken authentication = (JwtAuthenticationToken) converter.convert(jwt);
 
         assertEquals(Set.of("ROLE_ADMIN"), authorityNames(authentication));
-    }
-
-    private static Jwt jwtWithClaims(Map<String, Object> claims)
-    {
-        Jwt.Builder builder = Jwt.withTokenValue("token")
-                .header("alg", "none");
-
-        claims.forEach(builder::claim);
-        return builder.build();
-    }
-
-    private static Set<String> authorityNames(JwtAuthenticationToken authentication)
-    {
-        return authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(java.util.stream.Collectors.toSet());
     }
 }

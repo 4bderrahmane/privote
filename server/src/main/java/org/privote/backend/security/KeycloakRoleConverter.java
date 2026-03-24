@@ -8,13 +8,18 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @AllArgsConstructor
 public class KeycloakRoleConverter implements Converter<Jwt, AbstractAuthenticationToken>
 {
+    private static final String ROLE = "ROLE_";
+    private static final String ADMIN = "ADMIN";
     private final String keycloakClientId;
 
     @Override
@@ -43,7 +48,7 @@ public class KeycloakRoleConverter implements Converter<Jwt, AbstractAuthenticat
                 .filter(String.class::isInstance)
                 .map(String.class::cast)
                 .map(this::normalizeRole)
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .map(role -> new SimpleGrantedAuthority(ROLE + role))
                 .collect(Collectors.toUnmodifiableSet());
     }
 
@@ -64,7 +69,7 @@ public class KeycloakRoleConverter implements Converter<Jwt, AbstractAuthenticat
                 .filter(String.class::isInstance)
                 .map(String.class::cast)
                 .map(this::normalizeRole)
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .map(role -> new SimpleGrantedAuthority(ROLE + role))
                 .collect(Collectors.toUnmodifiableSet());
     }
 
@@ -72,7 +77,7 @@ public class KeycloakRoleConverter implements Converter<Jwt, AbstractAuthenticat
     {
         if ("admin".equalsIgnoreCase(role))
         {
-            return "ADMIN";
+            return ADMIN;
         }
 
         return role;
