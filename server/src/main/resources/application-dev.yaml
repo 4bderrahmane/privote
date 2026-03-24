@@ -1,8 +1,14 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
+
+web3j:
+  listener:
+    enabled: ${WEB3J_LISTENER_ENABLED:false}
 
 logging:
   level:

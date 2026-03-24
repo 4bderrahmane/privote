@@ -21,11 +21,9 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080/realms/voting-realm
+          issuer-uri: ${KC_ISSUER_URI:http://localhost:8080/realms/voting-realm}
+          jwk-set-uri: ${KC_JWK_SET_URI:http://localhost:8080/realms/voting-realm/protocol/openid-connect/certs}
 
-#        jwt:
-#          issuer-uri: http://localhost:8080/realms/voting-realm
-#          jwk-set-uri: http://localhost:8080/realms/voting-realm/protocol/openid-connect/certs
 keycloak-admin:
   server-url: "http://localhost:8080"
   realm: "voting-realm"
@@ -46,7 +44,7 @@ sync:
   replay-window-seconds: ${SYNC_REPLAY_WINDOW_SECONDS:600}
 
 web3j:
-  chain-id: 31337 #5777 for ganache
+  chain-id: 31337
   client-address: http://127.0.0.1:8545
   private-key: ${RELAYER_PRIVATE_KEY}
   election-factory-address: ${ELECTION_FACTORY_ADDRESS:}
