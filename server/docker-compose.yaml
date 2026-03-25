@@ -2,6 +2,8 @@ services:
   postgres:
     image: postgres:16
     container_name: privote-postgres
+    networks:
+      - privote
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
@@ -26,6 +28,8 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.0.0
     container_name: keycloak
+    networks:
+      - privote
     command: start-dev
     depends_on:
       postgres:
@@ -40,12 +44,11 @@ services:
       SYNC_SECRET: ${SYNC_SECRET:?SYNC_SECRET is required}
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:?KC_BOOTSTRAP_ADMIN_PASSWORD is required}
-
-      KC_HOSTNAME: localhost
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
       - keycloak_data:/opt/keycloak/data
+      - ./docker/keycloak/keycloak.conf:/opt/keycloak/conf/keycloak.conf:ro
       - ../keycloak-synchronizer/target/keycloak-synchronizer-1.0-SNAPSHOT.jar:/opt/keycloak/providers/keycloak-synchronizer.jar
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -55,3 +58,8 @@ volumes:
     name: privote_postgres_data
   keycloak_data:
     name: privote_keycloak_data
+
+networks:
+  privote:
+    name: privote_network
+    driver: bridge
