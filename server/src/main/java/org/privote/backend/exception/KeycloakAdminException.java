@@ -1,7 +1,7 @@
 package org.privote.backend.exception;
 
-import lombok.Getter;
 import jakarta.ws.rs.WebApplicationException;
+import lombok.Getter;
 
 @Getter
 public class KeycloakAdminException extends RuntimeException
@@ -16,14 +16,14 @@ public class KeycloakAdminException extends RuntimeException
         this.userId = userId;
     }
 
-    public int status()
-    {
-        return status;
-    }
-
     public static KeycloakAdminException from(WebApplicationException e, String userId, String msg)
     {
         int st = e.getResponse() != null ? e.getResponse().getStatus() : 500;
         return new KeycloakAdminException(msg, st, userId, e);
+    }
+
+    public int status()
+    {
+        return status;
     }
 }
