@@ -6,12 +6,14 @@ import org.privote.backend.utilities.ErrorCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
+import org.springframework.stereotype.Component;
 
 import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
 
+@Component
 final class ExceptionProblemDetailFactory
 {
     private static final String ERRORS = "errors";

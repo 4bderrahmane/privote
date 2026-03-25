@@ -4,7 +4,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.Nullable;
 import org.privote.backend.infrastructure.logging.RequestCorrelationFilter;
 import org.slf4j.MDC;
+import org.springframework.stereotype.Component;
 
+@Component
 final class ExceptionContextResolver
 {
     private static final String UNKNOWN_CONTEXT_VALUE = "unknown";
