@@ -1,10 +1,10 @@
 package org.privote.backend.entity;
 
 import jakarta.persistence.*;
-import java.time.Instant;
 import lombok.*;
 
 import java.math.BigInteger;
+import java.time.Instant;
 
 @Entity
 @Table(
