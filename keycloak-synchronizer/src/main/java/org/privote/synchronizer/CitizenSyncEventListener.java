@@ -253,6 +253,7 @@ public class CitizenSyncEventListener implements EventListenerProvider
 
     private void sendToBackend(PreparedSyncRequest preparedRequest, String userIdForLogs, String triggerDescription)
     {
+        log.debug("SYNC HIT");
         String backendBaseUrl = resolveBackendBaseUrl();
         String secret = resolveSecret();
         if (secret == null)
