@@ -3,7 +3,10 @@ package org.privote.backend.web3.listener.cursor;
 import java.math.BigInteger;
 import java.util.Objects;
 
-public record Cursor(BigInteger lastProcessedBlock, BigInteger lastProcessedLogIndex, String lastProcessedBlockHash)
+public record Cursor(
+        BigInteger lastProcessedBlock,
+        BigInteger lastProcessedLogIndex,
+        String lastProcessedBlockHash)
 {
     public static final BigInteger NO_LOG_INDEX = BigInteger.valueOf(-1);
 
