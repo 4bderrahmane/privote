@@ -6,6 +6,10 @@ import java.util.UUID;
 
 public class Web3Types
 {
+    private Web3Types()
+    {
+    }
+
     public static UUID bytes16ToUuid(byte[] b)
     {
         if (b == null || b.length != 16) throw new IllegalArgumentException("uuid must be 16 bytes");
