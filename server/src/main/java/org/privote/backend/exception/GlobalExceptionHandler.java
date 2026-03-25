@@ -2,164 +2,153 @@ package org.privote.backend.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.privote.backend.utilities.ErrorCode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.ProblemDetail;
-import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.*;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.transaction.CannotCreateTransactionException;
+import org.springframework.transaction.TransactionSystemException;
 import org.springframework.validation.BindException;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.ErrorResponseException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-import java.net.URI;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
 {
-    private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-    private static final String PATH = "path";
-    private static final String METHOD = "method";
-    private static final String ERRORS = "errors";
-    private static final String TIMESTAMP = "timestamp";
-    private static final String ERROR_CODE = "errorCode";
-    private static final String EXCEPTION = "exception";
+    private final ExceptionProblemDetailFactory problemDetailFactory;
+    private final ExceptionLogService exceptionLogService;
+
+    private static void addValidationError(Map<String, List<String>> errors, String key, @Nullable String message)
+    {
+        String normalizedKey = (key == null || key.isBlank()) ? "request" : key;
+        String normalizedMessage = (message == null || message.isBlank()) ? "Validation failed" : message;
+        errors.computeIfAbsent(normalizedKey, ignored -> new ArrayList<>()).add(normalizedMessage);
+    }
 
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ProblemDetail> handleBaseException(BaseException ex, HttpServletRequest request)
     {
-        logClientException(ex);
-        return buildResponse(ex.getErrorCode(), ex.getMessage(), request, null, null, ex);
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ProblemDetail> handleIllegalArgumentException(IllegalArgumentException ex, HttpServletRequest request)
-    {
-        logClientException(ex);
-        return buildResponse(ErrorCode.VALIDATION_ERROR, ex.getMessage(), request, null, null, ex);
-    }
-
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<ProblemDetail> handleIllegalStateException(IllegalStateException ex, HttpServletRequest request)
-    {
-        logClientException(ex);
-        return buildResponse(ErrorCode.DATA_CONFLICT, ex.getMessage(), request, null, null, ex);
+        exceptionLogService.logForStatus(resolveHttpStatus(ex.getErrorCode()), ex, request, ex.getErrorCode());
+        return buildResponse(ex.getErrorCode(), ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ProblemDetail> handleResourceNotFoundException(ResourceNotFoundException ex, HttpServletRequest request)
     {
-        logClientException(ex);
-
-        Map<String, Object> extras = new LinkedHashMap<>();
-        extras.put("resource", ex.getResource());
-        extras.put("field", ex.getField());
-        extras.put("value", ex.getValue());
-
-        return buildResponse(ex.getErrorCode(), ex.getMessage(), request, null, extras, ex);
+        exceptionLogService.logForStatus(resolveHttpStatus(ex.getErrorCode()), ex, request, ex.getErrorCode());
+        return buildResponse(ex.getErrorCode(), notFoundDetail(ex.getResource()), request, null);
     }
 
     @ExceptionHandler(VoteAlreadyCastException.class)
     public ResponseEntity<ProblemDetail> handleVoteAlreadyCastException(VoteAlreadyCastException ex, HttpServletRequest request)
     {
-        logClientException(ex);
-        return buildResponse(ErrorCode.DATA_CONFLICT, ex.getMessage(), request, null, null, ex);
+        exceptionLogService.logForStatus(HttpStatus.CONFLICT, ex, request, ErrorCode.DATA_CONFLICT);
+        return buildResponse(ErrorCode.DATA_CONFLICT, ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(KeycloakAdminException.class)
     public ResponseEntity<ProblemDetail> handleKeycloakAdminException(KeycloakAdminException ex, HttpServletRequest request)
     {
         ErrorCode errorCode = mapKeycloakStatus(ex.status());
-        Map<String, Object> extras = new LinkedHashMap<>();
-        extras.put("upstreamStatus", ex.status());
-        extras.put("userId", ex.getUserId());
-
-        if (errorCode == ErrorCode.EXTERNAL_SERVICE_FAILURE || errorCode == ErrorCode.TIMEOUT_OCCURRED)
-        {
-            LOG.error("Keycloak admin operation failed: status={}, userId={}", ex.status(), ex.getUserId(), ex);
-        } else
-        {
-            logClientException(ex);
-        }
-
-        return buildResponse(errorCode, ex.getMessage(), request, null, extras, ex);
+        exceptionLogService.logKeycloakFailure(ex, request, errorCode);
+        return buildResponse(errorCode, keycloakDetail(errorCode), request, null);
     }
 
     @ExceptionHandler(HandleAccessDenied.class)
     public ResponseEntity<ProblemDetail> handleCustomAccessDenied(HandleAccessDenied ex, HttpServletRequest request)
     {
-        logClientException(ex);
-        return buildResponse(ErrorCode.ACCESS_DENIED, ex.getMessage(), request, null, null, ex);
+        exceptionLogService.logForStatus(HttpStatus.FORBIDDEN, ex, request, ErrorCode.ACCESS_DENIED);
+        return buildResponse(ErrorCode.ACCESS_DENIED, ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ProblemDetail> handleAccessDeniedException(AccessDeniedException ex, HttpServletRequest request)
     {
-        logClientException(ex);
-        return buildResponse(ErrorCode.ACCESS_DENIED, "Access denied", request, null, null, ex);
+        exceptionLogService.logForStatus(HttpStatus.FORBIDDEN, ex, request, ErrorCode.ACCESS_DENIED);
+        return buildResponse(ErrorCode.ACCESS_DENIED, "Access denied", request, null);
     }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ProblemDetail> handleAuthenticationException(AuthenticationException ex, HttpServletRequest request)
     {
-        logClientException(ex);
-        return buildResponse(ErrorCode.UNAUTHORIZED, "Authentication required", request, null, null, ex);
+        exceptionLogService.logForStatus(HttpStatus.UNAUTHORIZED, ex, request, ErrorCode.UNAUTHORIZED);
+        return buildResponse(ErrorCode.UNAUTHORIZED, "Authentication required", request, null);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ProblemDetail> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request)
     {
         String detail = "Invalid value for parameter '" + ex.getName() + "'";
-        Map<String, Object> extras = new LinkedHashMap<>();
-        extras.put("parameter", ex.getName());
-        extras.put("value", ex.getValue());
-
-        logClientException(ex);
-        return buildResponse(ErrorCode.VALIDATION_ERROR, detail, request, null, extras, ex);
+        exceptionLogService.logForStatus(HttpStatus.BAD_REQUEST, ex, request, ErrorCode.VALIDATION_ERROR);
+        return buildResponse(ErrorCode.VALIDATION_ERROR, detail, request, null);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ProblemDetail> handleConstraintViolation(ConstraintViolationException ex, HttpServletRequest request)
     {
-        Map<String, String> errors = new LinkedHashMap<>();
-        ex.getConstraintViolations().forEach(violation -> errors.put(
-                violation.getPropertyPath().toString(),
-                violation.getMessage()
-        ));
+        Map<String, List<String>> errors = new LinkedHashMap<>();
+        ex.getConstraintViolations().forEach(violation ->
+                addValidationError(errors, violation.getPropertyPath().toString(), violation.getMessage())
+        );
 
-        logClientException(ex);
-        return buildResponse(ErrorCode.VALIDATION_ERROR, "Validation failed for one or more parameters.", request, errors, null, ex);
+        exceptionLogService.logForStatus(HttpStatus.BAD_REQUEST, ex, request, ErrorCode.VALIDATION_ERROR);
+        return buildResponse(ErrorCode.VALIDATION_ERROR, "Validation failed for one or more parameters.", request, errors);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ProblemDetail> handleDataIntegrityViolationException(DataIntegrityViolationException ex, HttpServletRequest request)
+    {
+        exceptionLogService.logForStatus(HttpStatus.CONFLICT, ex, request, ErrorCode.DATA_CONFLICT);
+        return buildResponse(ErrorCode.DATA_CONFLICT, "Data integrity constraint violated.", request, null);
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ProblemDetail> handleOptimisticLockingFailureException(OptimisticLockingFailureException ex, HttpServletRequest request)
+    {
+        exceptionLogService.logForStatus(HttpStatus.CONFLICT, ex, request, ErrorCode.DATA_CONFLICT);
+        return buildResponse(ErrorCode.DATA_CONFLICT, "Concurrent modification detected. Retry the request.", request, null);
+    }
+
+    @ExceptionHandler({TransactionSystemException.class, CannotCreateTransactionException.class})
+    public ResponseEntity<ProblemDetail> handleTransactionFailureException(Exception ex, HttpServletRequest request)
+    {
+        exceptionLogService.logForStatus(HttpStatus.INTERNAL_SERVER_ERROR, ex, request, ErrorCode.INTERNAL_SERVER_ERROR);
+        return buildResponse(ErrorCode.INTERNAL_SERVER_ERROR, "Database transaction failed.", request, null);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleUnknownException(Exception ex, HttpServletRequest request)
     {
-        LOG.error("Unhandled exception occurred", ex);
+        exceptionLogService.logForStatus(HttpStatus.INTERNAL_SERVER_ERROR, ex, request, ErrorCode.INTERNAL_SERVER_ERROR);
         return buildResponse(
                 ErrorCode.INTERNAL_SERVER_ERROR,
                 "An unexpected error occurred. Please contact support.",
                 request,
-                null,
-                null,
-                ex
+                null
         );
     }
 
@@ -171,35 +160,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
             @NonNull WebRequest request
     )
     {
-        Map<String, String> errors = new LinkedHashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
-
-        logClientException(ex);
-        return buildObjectResponse(
-                ErrorCode.VALIDATION_ERROR,
-                "Validation failed for one or more fields.",
-                extractRequest(request),
-                errors,
-                null,
-                ex
-        );
+        HttpServletRequest servletRequest = extractRequest(request);
+        return buildBindingValidationResponse(ex, ex.getBindingResult(), servletRequest, status);
     }
 
     @ExceptionHandler(BindException.class)
     public ResponseEntity<Object> handleBindException(BindException ex, HttpServletRequest request)
     {
-        Map<String, String> errors = new LinkedHashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
-
-        logClientException(ex);
-        return buildObjectResponse(
-                ErrorCode.VALIDATION_ERROR,
-                "Validation failed for one or more fields.",
-                request,
-                errors,
-                null,
-                ex
-        );
+        return buildBindingValidationResponse(ex, ex.getBindingResult(), request, HttpStatus.BAD_REQUEST);
     }
 
     @Override
@@ -210,19 +178,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
             @NonNull WebRequest request
     )
     {
-        Map<String, Object> extras = Map.of(
-                "parameter", ex.getParameterName(),
-                "expectedType", ex.getParameterType()
-        );
-
-        logClientException(ex);
+        HttpServletRequest servletRequest = extractRequest(request);
+        exceptionLogService.logForStatus(status, ex, servletRequest, ErrorCode.VALIDATION_ERROR);
         return buildObjectResponse(
                 ErrorCode.VALIDATION_ERROR,
                 "Missing required request parameter '" + ex.getParameterName() + "'.",
-                extractRequest(request),
+                servletRequest,
                 null,
-                extras,
-                ex
+                status
         );
     }
 
@@ -234,14 +197,96 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
             @NonNull WebRequest request
     )
     {
-        logClientException(ex);
+        HttpServletRequest servletRequest = extractRequest(request);
+        exceptionLogService.logForStatus(status, ex, servletRequest, ErrorCode.VALIDATION_ERROR);
         return buildObjectResponse(
                 ErrorCode.VALIDATION_ERROR,
                 "Malformed request body.",
-                extractRequest(request),
+                servletRequest,
                 null,
+                status
+        );
+    }
+
+    @Override
+    protected @NonNull ResponseEntity<@NonNull Object> handleHttpMediaTypeNotSupported(
+            @NonNull HttpMediaTypeNotSupportedException ex,
+            @NonNull HttpHeaders headers,
+            @NonNull HttpStatusCode status,
+            @NonNull WebRequest request
+    )
+    {
+        HttpServletRequest servletRequest = extractRequest(request);
+        exceptionLogService.logForStatus(status, ex, servletRequest, ErrorCode.VALIDATION_ERROR);
+        return buildObjectResponse(
+                ErrorCode.VALIDATION_ERROR,
+                "Unsupported media type.",
+                servletRequest,
                 null,
-                ex
+                status
+        );
+    }
+
+    @Override
+    protected @NonNull ResponseEntity<@NonNull Object> handleHttpMediaTypeNotAcceptable(
+            @NonNull HttpMediaTypeNotAcceptableException ex,
+            @NonNull HttpHeaders headers,
+            @NonNull HttpStatusCode status,
+            @NonNull WebRequest request
+    )
+    {
+        HttpServletRequest servletRequest = extractRequest(request);
+        exceptionLogService.logForStatus(status, ex, servletRequest, ErrorCode.VALIDATION_ERROR);
+        return buildObjectResponse(
+                ErrorCode.VALIDATION_ERROR,
+                "Requested representation is not acceptable.",
+                servletRequest,
+                null,
+                status
+        );
+    }
+
+    @Override
+    protected @NonNull ResponseEntity<@NonNull Object> handleServletRequestBindingException(
+            @NonNull ServletRequestBindingException ex,
+            @NonNull HttpHeaders headers,
+            @NonNull HttpStatusCode status,
+            @NonNull WebRequest request
+    )
+    {
+        String detail = ex.getMessage();
+        if (detail == null || detail.isBlank())
+        {
+            detail = "Missing or invalid request binding value.";
+        }
+
+        HttpServletRequest servletRequest = extractRequest(request);
+        exceptionLogService.logForStatus(status, ex, servletRequest, ErrorCode.VALIDATION_ERROR);
+        return buildObjectResponse(
+                ErrorCode.VALIDATION_ERROR,
+                detail,
+                servletRequest,
+                null,
+                status
+        );
+    }
+
+    @Override
+    protected @NonNull ResponseEntity<@NonNull Object> handleMaxUploadSizeExceededException(
+            @NonNull MaxUploadSizeExceededException ex,
+            @NonNull HttpHeaders headers,
+            @NonNull HttpStatusCode status,
+            @NonNull WebRequest request
+    )
+    {
+        HttpServletRequest servletRequest = extractRequest(request);
+        exceptionLogService.logForStatus(status, ex, servletRequest, ErrorCode.VALIDATION_ERROR);
+        return buildObjectResponse(
+                ErrorCode.VALIDATION_ERROR,
+                "Uploaded payload exceeds the maximum allowed size.",
+                servletRequest,
+                null,
+                status
         );
     }
 
@@ -260,8 +305,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
             detail = status.toString();
         }
 
-        logForStatus(status, ex);
-        return buildObjectResponse(errorCode, detail, extractRequest(request), null, null, ex);
+        HttpServletRequest servletRequest = extractRequest(request);
+        exceptionLogService.logForStatus(status, ex, servletRequest, errorCode);
+        return buildObjectResponse(errorCode, detail, servletRequest, null, status);
     }
 
     @Override
@@ -278,19 +324,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
 
         if (body instanceof ProblemDetail problemDetail)
         {
-            enrichProblemDetail(problemDetail, errorCode, servletRequest, ex);
-            logForStatus(statusCode, ex);
+            problemDetailFactory.enrichProblemDetail(problemDetail, errorCode, servletRequest);
+            exceptionLogService.logForStatus(statusCode, ex, servletRequest, errorCode);
             return new ResponseEntity<>(problemDetail, headers, statusCode);
         }
 
         String detail = ex.getMessage();
         if (detail == null || detail.isBlank())
         {
-            detail = HttpStatus.valueOf(statusCode.value()).getReasonPhrase();
+            detail = ExceptionProblemDetailFactory.reasonPhrase(statusCode);
         }
 
-        logForStatus(statusCode, ex);
-        return buildObjectResponse(errorCode, detail, servletRequest, null, null, ex);
+        exceptionLogService.logForStatus(statusCode, ex, servletRequest, errorCode);
+        return buildObjectResponse(errorCode, detail, servletRequest, null, statusCode);
+    }
+
+    private ResponseEntity<ProblemDetail> buildResponse(
+            ErrorCode errorCode,
+            String detail,
+            @Nullable HttpServletRequest request,
+            @Nullable Object errors
+    )
+    {
+        return buildResponse(errorCode, detail, request, errors, null);
     }
 
     private ResponseEntity<ProblemDetail> buildResponse(
@@ -298,12 +354,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
             String detail,
             @Nullable HttpServletRequest request,
             @Nullable Object errors,
-            @Nullable Map<String, ?> extras,
-            @Nullable Throwable ex
+            @Nullable HttpStatusCode responseStatus
     )
     {
-        ProblemDetail problemDetail = buildProblemDetail(errorCode, detail, request, errors, extras, ex);
-        return new ResponseEntity<>(problemDetail, resolveHttpStatus(errorCode));
+        ProblemDetail problemDetail = problemDetailFactory.buildProblemDetail(errorCode, detail, request, errors, responseStatus);
+        HttpStatusCode status = responseStatus != null ? responseStatus : resolveHttpStatus(errorCode);
+        return new ResponseEntity<>(problemDetail, status);
     }
 
     private ResponseEntity<Object> buildObjectResponse(
@@ -311,118 +367,42 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
             String detail,
             @Nullable HttpServletRequest request,
             @Nullable Object errors,
-            @Nullable Map<String, ?> extras,
-            @Nullable Throwable ex
+            @Nullable HttpStatusCode responseStatus
     )
     {
-        ProblemDetail problemDetail = buildProblemDetail(errorCode, detail, request, errors, extras, ex);
-        return ResponseEntity.status(resolveHttpStatus(errorCode)).body(problemDetail);
+        ProblemDetail problemDetail = problemDetailFactory.buildProblemDetail(errorCode, detail, request, errors, responseStatus);
+        HttpStatusCode status = responseStatus != null ? responseStatus : resolveHttpStatus(errorCode);
+        return ResponseEntity.status(status).body(problemDetail);
     }
 
-    private ProblemDetail buildProblemDetail(
-            ErrorCode errorCode,
-            String detail,
+    private ResponseEntity<Object> buildBindingValidationResponse(
+            Exception ex,
+            BindingResult bindingResult,
             @Nullable HttpServletRequest request,
-            @Nullable Object errors,
-            @Nullable Map<String, ?> extras,
-            @Nullable Throwable ex
+            HttpStatusCode status
     )
     {
-        HttpStatus status = HttpStatus.valueOf(errorCode.httpStatus());
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
-
-        problemDetail.setTitle(status.getReasonPhrase());
-        problemDetail.setType(URI.create("urn:problem-type:" + errorCode.name().toLowerCase().replace("_", "-")));
-
-        if (request != null)
-        {
-            String instance = request.getRequestURI();
-            if (request.getQueryString() != null)
-            {
-                instance += "?" + request.getQueryString();
-            }
-            problemDetail.setInstance(URI.create(instance));
-            problemDetail.setProperty(PATH, request.getRequestURI());
-            problemDetail.setProperty(METHOD, request.getMethod());
-        }
-
-        problemDetail.setProperty(TIMESTAMP, OffsetDateTime.now(ZoneOffset.UTC));
-        problemDetail.setProperty(ERROR_CODE, errorCode.name());
-
-        if (errors != null)
-        {
-            problemDetail.setProperty(ERRORS, errors);
-        }
-
-        if (extras != null && !extras.isEmpty())
-        {
-            extras.forEach((key, value) -> setPropertyIfAbsent(problemDetail, key, value));
-        }
-
-        if (ex != null)
-        {
-            setPropertyIfAbsent(problemDetail, EXCEPTION, ex.getClass().getSimpleName());
-        }
-
-        return problemDetail;
+        Map<String, List<String>> errors = extractBindingErrors(bindingResult);
+        exceptionLogService.logForStatus(status, ex, request, ErrorCode.VALIDATION_ERROR);
+        return buildObjectResponse(
+                ErrorCode.VALIDATION_ERROR,
+                "Validation failed for one or more fields.",
+                request,
+                errors,
+                status
+        );
     }
 
-    private void enrichProblemDetail(
-            ProblemDetail problemDetail,
-            ErrorCode errorCode,
-            @Nullable HttpServletRequest request,
-            @Nullable Throwable ex
-    )
+    private Map<String, List<String>> extractBindingErrors(BindingResult bindingResult)
     {
-        String title = problemDetail.getTitle();
-        if (title == null || title.isBlank())
-        {
-            HttpStatus status = HttpStatus.valueOf(problemDetail.getStatus());
-            problemDetail.setTitle(status.getReasonPhrase());
-        }
-
-        if (problemDetail.getType() == null)
-        {
-            problemDetail.setType(URI.create("urn:problem-type:" + errorCode.name().toLowerCase().replace("_", "-")));
-        }
-
-        if (request != null)
-        {
-            if (problemDetail.getInstance() == null)
-            {
-                String instance = request.getRequestURI();
-                if (request.getQueryString() != null)
-                {
-                    instance += "?" + request.getQueryString();
-                }
-                problemDetail.setInstance(URI.create(instance));
-            }
-            setPropertyIfAbsent(problemDetail, PATH, request.getRequestURI());
-            setPropertyIfAbsent(problemDetail, METHOD, request.getMethod());
-        }
-
-        setPropertyIfAbsent(problemDetail, TIMESTAMP, OffsetDateTime.now(ZoneOffset.UTC));
-        setPropertyIfAbsent(problemDetail, ERROR_CODE, errorCode.name());
-        if (ex != null)
-        {
-            setPropertyIfAbsent(problemDetail, EXCEPTION, ex.getClass().getSimpleName());
-        }
-    }
-
-    private static void setPropertyIfAbsent(ProblemDetail problemDetail, String key, @Nullable Object value)
-    {
-        if (value == null)
-        {
-            return;
-        }
-
-        Map<String, Object> properties = problemDetail.getProperties();
-        if (properties != null && properties.containsKey(key))
-        {
-            return;
-        }
-
-        problemDetail.setProperty(key, value);
+        Map<String, List<String>> errors = new LinkedHashMap<>();
+        bindingResult.getFieldErrors().forEach(error ->
+                addValidationError(errors, error.getField(), error.getDefaultMessage())
+        );
+        bindingResult.getGlobalErrors().forEach(error ->
+                addValidationError(errors, error.getObjectName(), error.getDefaultMessage())
+        );
+        return errors;
     }
 
     private @Nullable HttpServletRequest extractRequest(WebRequest request)
@@ -439,40 +419,40 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
         return HttpStatus.valueOf(errorCode.httpStatus());
     }
 
-    private void logClientException(Exception ex)
+    private String notFoundDetail(@Nullable String resource)
     {
-        Throwable cause = ex.getCause();
-        if (cause != null && cause.getMessage() != null && !cause.getMessage().isBlank())
+        if (resource == null || resource.isBlank())
         {
-            LOG.warn("Request failed: {} | cause: {}", ex.getMessage(), cause.getMessage());
-            return;
+            return "Resource not found";
         }
-
-        LOG.warn("Request failed: {}", ex.getMessage());
+        return resource + " not found";
     }
 
-    private void logForStatus(HttpStatusCode statusCode, Exception ex)
+    private String keycloakDetail(ErrorCode errorCode)
     {
-        if (statusCode.is5xxServerError())
+        return switch (errorCode)
         {
-            LOG.error("Request failed with server error", ex);
-            return;
-        }
-        logClientException(ex);
+            case UNAUTHORIZED -> "Authentication required";
+            case ACCESS_DENIED -> "Access denied";
+            case USER_NOT_FOUND -> "User not found";
+            case TIMEOUT_OCCURRED -> "Identity service request timed out";
+            default -> "Identity service request failed";
+        };
     }
 
     private ErrorCode mapStatusToErrorCode(HttpStatusCode status)
     {
         return switch (status.value())
         {
-            case 400 -> ErrorCode.VALIDATION_ERROR;
+            case 400, 406, 413, 415, 422 -> ErrorCode.VALIDATION_ERROR;
             case 401 -> ErrorCode.UNAUTHORIZED;
             case 403 -> ErrorCode.ACCESS_DENIED;
             case 404 -> ErrorCode.RESOURCE_NOT_FOUND;
             case 405 -> ErrorCode.METHOD_NOT_ALLOWED;
             case 409 -> ErrorCode.DATA_CONFLICT;
+            case 429 -> ErrorCode.OPERATION_NOT_ALLOWED;
+            case 408, 504 -> ErrorCode.TIMEOUT_OCCURRED;
             case 502, 503 -> ErrorCode.EXTERNAL_SERVICE_FAILURE;
-            case 504 -> ErrorCode.TIMEOUT_OCCURRED;
             default -> ErrorCode.INTERNAL_SERVER_ERROR;
         };
     }
