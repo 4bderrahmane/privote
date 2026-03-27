@@ -99,7 +99,7 @@ public class ElectionFactoryClient
             );
         }
 
-        var events = factory.getElectionDeployedEvents(receipt);
+        var events = ElectionFactory.getElectionDeployedEvents(receipt);
         if (!events.isEmpty())
         {
             return normalizeAddress(events.get(0).election);
