@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.privote.backend.dto.citizen.CitizenSelfUpdateRequest;
 import org.privote.backend.dto.citizen.CitizenSyncRequest;
 import org.privote.backend.entity.Citizen;
+import org.privote.backend.exception.RequestValidationException;
 import org.privote.backend.mapper.CitizenMapper;
 import org.privote.backend.repository.CitizenRepository;
 
@@ -15,10 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CitizenServiceOwnProfileTest
 {
@@ -104,7 +102,7 @@ class CitizenServiceOwnProfileTest
         CitizenSelfUpdateRequest request = new CitizenSelfUpdateRequest();
         request.setFirstName("   ");
 
-        assertThrows(IllegalArgumentException.class, () -> citizenService.updateOwnProfile(keycloakId, request));
+        assertThrows(RequestValidationException.class, () -> citizenService.updateOwnProfile(keycloakId, request));
     }
 
     private CitizenRepository repositoryStub()
@@ -132,7 +130,8 @@ class CitizenServiceOwnProfileTest
                         case "equals" -> proxy == args[0];
                         case "hashCode" -> System.identityHashCode(proxy);
                         case "toString" -> "CitizenRepositoryStub";
-                        default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                        default ->
+                                throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                     };
                 }
         );

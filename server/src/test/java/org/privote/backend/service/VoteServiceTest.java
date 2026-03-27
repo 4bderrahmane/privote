@@ -4,14 +4,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.privote.backend.dto.ballot.BallotCastRequestDto;
 import org.privote.backend.dto.ballot.BallotCastResponseDto;
-import org.privote.backend.entity.Ballot;
-import org.privote.backend.entity.Citizen;
-import org.privote.backend.entity.CitizenElectionParticipation;
-import org.privote.backend.entity.Election;
-import org.privote.backend.entity.VoterCommitment;
+import org.privote.backend.entity.*;
 import org.privote.backend.entity.enums.CommitmentStatus;
 import org.privote.backend.entity.enums.ElectionPhase;
 import org.privote.backend.entity.enums.ParticipationStatus;
+import org.privote.backend.exception.BusinessConflictException;
+import org.privote.backend.exception.OperationFailedException;
 import org.privote.backend.exception.VoteAlreadyCastException;
 import org.privote.backend.repository.BallotRepository;
 import org.privote.backend.repository.CitizenElectionParticipationRepository;
@@ -31,9 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 class VoteServiceTest
 {
@@ -41,6 +37,45 @@ class VoteServiceTest
     private final Map<String, VoterCommitment> commitments = new HashMap<>();
     private final Map<String, CitizenElectionParticipation> participations = new HashMap<>();
     private final Map<UUID, Ballot> ballots = new HashMap<>();
+
+    private static Election votingElection(UUID publicId)
+    {
+        Election election = new Election();
+        election.setPublicId(publicId);
+        election.setPhase(ElectionPhase.VOTING);
+        election.setTitle("Vote test");
+        election.setCoordinator(Citizen.builder().keycloakId(UUID.randomUUID()).build());
+        election.setEndTime(Instant.now().plusSeconds(3600));
+        election.setContractAddress("0xabc0000000000000000000000000000000000000");
+        election.setEncryptionPublicKey(new byte[32]);
+        return election;
+    }
+
+    private static BallotCastRequestDto request(String nullifier)
+    {
+        BallotCastRequestDto request = new BallotCastRequestDto();
+        request.setCiphertext(new byte[]{1, 2, 3, 4});
+        request.setNullifier(nullifier);
+        request.setProof(java.util.List.of("1", "2", "3", "4", "5", "6", "7", "8"));
+        return request;
+    }
+
+    private static String commitmentKey(UUID citizenKeycloakId, UUID electionPublicId)
+    {
+        return citizenKeycloakId + "::" + electionPublicId;
+    }
+
+    private static TransactionOperations transactionOperationsNoOp()
+    {
+        return new TransactionOperations()
+        {
+            @Override
+            public <T> T execute(TransactionCallback<T> action)
+            {
+                return action.doInTransaction(new SimpleTransactionStatus());
+            }
+        };
+    }
 
     @BeforeEach
     void setUp()
@@ -144,8 +179,8 @@ class VoteServiceTest
                 transactionOperationsNoOp()
         );
 
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+        BusinessConflictException ex = assertThrows(
+                BusinessConflictException.class,
                 () -> voteService.castMyVote(electionPublicId, citizenKeycloakId, request("222"))
         );
 
@@ -230,8 +265,8 @@ class VoteServiceTest
                 transactionOperationsNoOp()
         );
 
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+        OperationFailedException ex = assertThrows(
+                OperationFailedException.class,
                 () -> voteService.castMyVote(electionPublicId, citizenKeycloakId, request("222"))
         );
 
@@ -249,7 +284,8 @@ class VoteServiceTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "ElectionRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
     }
@@ -266,7 +302,8 @@ class VoteServiceTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "VoterCommitmentRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
     }
@@ -292,7 +329,8 @@ class VoteServiceTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "CitizenElectionParticipationRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
     }
@@ -325,47 +363,9 @@ class VoteServiceTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "BallotRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
-    }
-
-    private static Election votingElection(UUID publicId)
-    {
-        Election election = new Election();
-        election.setPublicId(publicId);
-        election.setPhase(ElectionPhase.VOTING);
-        election.setTitle("Vote test");
-        election.setCoordinator(Citizen.builder().keycloakId(UUID.randomUUID()).build());
-        election.setEndTime(Instant.now().plusSeconds(3600));
-        election.setContractAddress("0xabc0000000000000000000000000000000000000");
-        election.setEncryptionPublicKey(new byte[32]);
-        return election;
-    }
-
-    private static BallotCastRequestDto request(String nullifier)
-    {
-        BallotCastRequestDto request = new BallotCastRequestDto();
-        request.setCiphertext(new byte[]{1, 2, 3, 4});
-        request.setNullifier(nullifier);
-        request.setProof(java.util.List.of("1", "2", "3", "4", "5", "6", "7", "8"));
-        return request;
-    }
-
-    private static String commitmentKey(UUID citizenKeycloakId, UUID electionPublicId)
-    {
-        return citizenKeycloakId + "::" + electionPublicId;
-    }
-
-    private static TransactionOperations transactionOperationsNoOp()
-    {
-        return new TransactionOperations()
-        {
-            @Override
-            public <T> T execute(TransactionCallback<T> action)
-            {
-                return action.doInTransaction(new SimpleTransactionStatus());
-            }
-        };
     }
 }

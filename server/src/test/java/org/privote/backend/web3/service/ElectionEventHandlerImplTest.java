@@ -34,6 +34,26 @@ class ElectionEventHandlerImplTest
     private final Map<String, CitizenElectionParticipation> participations = new HashMap<>();
     private ElectionEventHandlerImpl handler;
 
+    private static Election election(String contractAddress, ElectionPhase phase)
+    {
+        Election election = new Election();
+        election.setPublicId(UUID.randomUUID());
+        election.setContractAddress(contractAddress);
+        election.setPhase(phase);
+        election.setStartTime(null);
+        election.setEndTime(Instant.now().plusSeconds(3_600));
+        election.setCoordinator(Citizen.builder().keycloakId(UUID.randomUUID()).build());
+        election.setTitle("Test election");
+        election.setExternalNullifier(BigInteger.ONE);
+        election.setEncryptionPublicKey(new byte[32]);
+        return election;
+    }
+
+    private static String commitmentKey(UUID citizenKeycloakId, UUID electionPublicId)
+    {
+        return citizenKeycloakId + "::" + electionPublicId;
+    }
+
     @BeforeEach
     void setUp()
     {
@@ -138,7 +158,8 @@ class ElectionEventHandlerImplTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "ElectionRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
     }
@@ -150,11 +171,10 @@ class ElectionEventHandlerImplTest
                 new Class[]{VoterCommitmentRepository.class},
                 (proxy, method, args) -> switch (method.getName())
                 {
-                    case "findByElectionPublicIdAndIdentityCommitment" ->
-                            commitments.values().stream()
-                                    .filter(commitment -> commitment.getElection().getPublicId().equals(args[0]))
-                                    .filter(commitment -> commitment.getIdentityCommitment().equals(args[1]))
-                                    .findFirst();
+                    case "findByElectionPublicIdAndIdentityCommitment" -> commitments.values().stream()
+                            .filter(commitment -> commitment.getElection().getPublicId().equals(args[0]))
+                            .filter(commitment -> commitment.getIdentityCommitment().equals(args[1]))
+                            .findFirst();
                     case "save" ->
                     {
                         VoterCommitment commitment = (VoterCommitment) args[0];
@@ -167,7 +187,8 @@ class ElectionEventHandlerImplTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "VoterCommitmentRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
     }
@@ -193,28 +214,9 @@ class ElectionEventHandlerImplTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "CitizenElectionParticipationRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
-    }
-
-    private static Election election(String contractAddress, ElectionPhase phase)
-    {
-        Election election = new Election();
-        election.setPublicId(UUID.randomUUID());
-        election.setContractAddress(contractAddress);
-        election.setPhase(phase);
-        election.setStartTime(null);
-        election.setEndTime(Instant.now().plusSeconds(3_600));
-        election.setCoordinator(Citizen.builder().keycloakId(UUID.randomUUID()).build());
-        election.setTitle("Test election");
-        election.setExternalNullifier(BigInteger.ONE);
-        election.setEncryptionPublicKey(new byte[32]);
-        return election;
-    }
-
-    private static String commitmentKey(UUID citizenKeycloakId, UUID electionPublicId)
-    {
-        return citizenKeycloakId + "::" + electionPublicId;
     }
 }

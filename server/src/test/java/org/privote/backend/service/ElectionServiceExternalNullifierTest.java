@@ -6,6 +6,8 @@ import org.privote.backend.dto.election.ElectionPatchDto;
 import org.privote.backend.entity.Citizen;
 import org.privote.backend.entity.Election;
 import org.privote.backend.entity.enums.ElectionPhase;
+import org.privote.backend.exception.BusinessConflictException;
+import org.privote.backend.exception.RequestValidationException;
 import org.privote.backend.mapper.ElectionMapperImpl;
 import org.privote.backend.repository.CitizenRepository;
 import org.privote.backend.repository.ElectionRepository;
@@ -68,7 +70,7 @@ class ElectionServiceExternalNullifierTest
         dto.setEncryptionPublicKey(new byte[32]);
         dto.setExternalNullifier(java.math.BigInteger.TEN);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> electionService.createElection(dto));
+        RequestValidationException ex = assertThrows(RequestValidationException.class, () -> electionService.createElection(dto));
 
         assertEquals("externalNullifier must match the canonical UUID-derived election scope", ex.getMessage());
     }
@@ -94,7 +96,7 @@ class ElectionServiceExternalNullifierTest
         dto.setEncryptionPublicKey(new byte[32]);
         dto.setPhase(ElectionPhase.VOTING);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> electionService.createElection(dto));
+        RequestValidationException ex = assertThrows(RequestValidationException.class, () -> electionService.createElection(dto));
 
         assertEquals("New elections must start in REGISTRATION", ex.getMessage());
     }
@@ -126,8 +128,8 @@ class ElectionServiceExternalNullifierTest
         ElectionPatchDto patchDto = new ElectionPatchDto();
         patchDto.setPhase(ElectionPhase.VOTING);
 
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
+        BusinessConflictException ex = assertThrows(
+                BusinessConflictException.class,
                 () -> electionService.patchElection(election.getPublicId(), patchDto)
         );
 
@@ -165,8 +167,8 @@ class ElectionServiceExternalNullifierTest
         updateDto.setEncryptionPublicKey(new byte[32]);
         updateDto.setPhase(ElectionPhase.VOTING);
 
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
+        BusinessConflictException ex = assertThrows(
+                BusinessConflictException.class,
                 () -> electionService.updateElection(election.getPublicId(), updateDto)
         );
 
@@ -190,7 +192,8 @@ class ElectionServiceExternalNullifierTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "ElectionRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
     }
@@ -206,7 +209,8 @@ class ElectionServiceExternalNullifierTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "CitizenRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
     }

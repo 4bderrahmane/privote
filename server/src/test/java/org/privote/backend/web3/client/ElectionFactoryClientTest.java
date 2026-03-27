@@ -19,82 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ElectionFactoryClientTest
 {
-    @Test
-    void resolveFactoryAddressRejectsFactoryAddressWithoutContractCode()
-    {
-        Web3jProperties props = new Web3jProperties();
-        props.setElectionFactoryAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
-        props.setChainId(1L);
-
-        ElectionFactoryClient client = new ElectionFactoryClient(
-                web3jStub(address -> "0x"),
-                null,
-                null,
-                props
-        );
-
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
-                client::resolveFactoryAddress
-        );
-
-        assertEquals(
-                "Configured electionFactoryAddress has no contract code: 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
-                ex.getMessage()
-        );
-    }
-
-    @Test
-    void resolveFactoryAddressFallsBackToLocalHardhatFactoryWhenConfiguredAddressHasNoCode()
-    {
-        Web3jProperties props = new Web3jProperties();
-        props.setClientAddress("http://127.0.0.1:8545");
-        props.setChainId(ElectionFactoryClient.LOCAL_HARDHAT_CHAIN_ID);
-        props.setElectionFactoryAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
-
-        ElectionFactoryClient client = new ElectionFactoryClient(
-                web3jStub(address -> {
-                    if (ElectionFactoryClient.LOCAL_HARDHAT_FACTORY_ADDRESS.equalsIgnoreCase(address)) {
-                        return "0x6000";
-                    }
-                    return "0x";
-                }),
-                null,
-                null,
-                props
-        );
-
-        assertEquals(
-                ElectionFactoryClient.LOCAL_HARDHAT_FACTORY_ADDRESS,
-                client.resolveFactoryAddress()
-        );
-    }
-
-    @Test
-    void resolveFactoryAddressFallsBackToLocalHardhatFactoryWhenConfigIsMissing()
-    {
-        Web3jProperties props = new Web3jProperties();
-        props.setClientAddress("http://localhost:8545");
-        props.setChainId(ElectionFactoryClient.LOCAL_HARDHAT_CHAIN_ID);
-
-        ElectionFactoryClient client = new ElectionFactoryClient(
-                web3jStub(address -> {
-                    if (ElectionFactoryClient.LOCAL_HARDHAT_FACTORY_ADDRESS.equalsIgnoreCase(address)) {
-                        return "0x6000";
-                    }
-                    return "0x";
-                }),
-                null,
-                null,
-                props
-        );
-
-        assertEquals(
-                ElectionFactoryClient.LOCAL_HARDHAT_FACTORY_ADDRESS,
-                client.resolveFactoryAddress()
-        );
-    }
-
     private static Web3j web3jStub(java.util.function.Function<String, String> codeByAddress)
     {
         Web3jService service = new Web3jService()
@@ -114,8 +38,7 @@ class ElectionFactoryClientTest
                 try
                 {
                     return CompletableFuture.completedFuture(send(request, responseType));
-                }
-                catch (Exception ex)
+                } catch (Exception ex)
                 {
                     return CompletableFuture.failedFuture(ex);
                 }
@@ -161,6 +84,86 @@ class ElectionFactoryClientTest
                     case "toString" -> "Web3jStub";
                     default -> throw new UnsupportedOperationException("Unexpected Web3j method: " + method.getName());
                 }
+        );
+    }
+
+    @Test
+    void resolveFactoryAddressRejectsFactoryAddressWithoutContractCode()
+    {
+        Web3jProperties props = new Web3jProperties();
+        props.setElectionFactoryAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+        props.setChainId(1L);
+
+        ElectionFactoryClient client = new ElectionFactoryClient(
+                web3jStub(address -> "0x"),
+                null,
+                null,
+                props
+        );
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                client::resolveFactoryAddress
+        );
+
+        assertEquals(
+                "Configured electionFactoryAddress has no contract code: 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+                ex.getMessage()
+        );
+    }
+
+    @Test
+    void resolveFactoryAddressFallsBackToLocalHardhatFactoryWhenConfiguredAddressHasNoCode()
+    {
+        Web3jProperties props = new Web3jProperties();
+        props.setClientAddress("http://127.0.0.1:8545");
+        props.setChainId(ElectionFactoryClient.LOCAL_HARDHAT_CHAIN_ID);
+        props.setElectionFactoryAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+
+        ElectionFactoryClient client = new ElectionFactoryClient(
+                web3jStub(address ->
+                {
+                    if (ElectionFactoryClient.LOCAL_HARDHAT_FACTORY_ADDRESS.equalsIgnoreCase(address))
+                    {
+                        return "0x6000";
+                    }
+                    return "0x";
+                }),
+                null,
+                null,
+                props
+        );
+
+        assertEquals(
+                ElectionFactoryClient.LOCAL_HARDHAT_FACTORY_ADDRESS,
+                client.resolveFactoryAddress()
+        );
+    }
+
+    @Test
+    void resolveFactoryAddressFallsBackToLocalHardhatFactoryWhenConfigIsMissing()
+    {
+        Web3jProperties props = new Web3jProperties();
+        props.setClientAddress("http://localhost:8545");
+        props.setChainId(ElectionFactoryClient.LOCAL_HARDHAT_CHAIN_ID);
+
+        ElectionFactoryClient client = new ElectionFactoryClient(
+                web3jStub(address ->
+                {
+                    if (ElectionFactoryClient.LOCAL_HARDHAT_FACTORY_ADDRESS.equalsIgnoreCase(address))
+                    {
+                        return "0x6000";
+                    }
+                    return "0x";
+                }),
+                null,
+                null,
+                props
+        );
+
+        assertEquals(
+                ElectionFactoryClient.LOCAL_HARDHAT_FACTORY_ADDRESS,
+                client.resolveFactoryAddress()
         );
     }
 }

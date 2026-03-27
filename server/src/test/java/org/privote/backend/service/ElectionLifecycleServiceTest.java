@@ -6,6 +6,8 @@ import org.privote.backend.entity.Citizen;
 import org.privote.backend.entity.Election;
 import org.privote.backend.entity.enums.CandidateStatus;
 import org.privote.backend.entity.enums.ElectionPhase;
+import org.privote.backend.exception.BusinessConflictException;
+import org.privote.backend.exception.RequestValidationException;
 import org.privote.backend.repository.CandidateRepository;
 import org.privote.backend.repository.ElectionRepository;
 import org.privote.backend.web3.client.ElectionClient;
@@ -18,15 +20,24 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 class ElectionLifecycleServiceTest
 {
     private final Map<UUID, Election> elections = new HashMap<>();
     private final Map<UUID, Boolean> activeCandidates = new HashMap<>();
     private ElectionLifecycleService electionLifecycleService;
+
+    private static Election election(UUID publicId, ElectionPhase phase, Instant endTime)
+    {
+        Election election = new Election();
+        election.setPublicId(publicId);
+        election.setPhase(phase);
+        election.setEndTime(endTime);
+        election.setCoordinator(Citizen.builder().keycloakId(UUID.randomUUID()).build());
+        election.setTitle("Test election");
+        return election;
+    }
 
     @BeforeEach
     void setUp()
@@ -176,8 +187,8 @@ class ElectionLifecycleServiceTest
                 new ElectionClient(null, null, null)
         );
 
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+        BusinessConflictException ex = assertThrows(
+                BusinessConflictException.class,
                 () -> electionLifecycleService.startElection(publicId)
         );
 
@@ -199,8 +210,8 @@ class ElectionLifecycleServiceTest
                 new ElectionClient(null, null, null)
         );
 
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+        RequestValidationException ex = assertThrows(
+                RequestValidationException.class,
                 () -> electionLifecycleService.endElection(publicId, null)
         );
 
@@ -228,7 +239,8 @@ class ElectionLifecycleServiceTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "ElectionRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
     }
@@ -245,19 +257,9 @@ class ElectionLifecycleServiceTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "CandidateRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
-    }
-
-    private static Election election(UUID publicId, ElectionPhase phase, Instant endTime)
-    {
-        Election election = new Election();
-        election.setPublicId(publicId);
-        election.setPhase(phase);
-        election.setEndTime(endTime);
-        election.setCoordinator(Citizen.builder().keycloakId(UUID.randomUUID()).build());
-        election.setTitle("Test election");
-        return election;
     }
 }

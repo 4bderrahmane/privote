@@ -9,6 +9,7 @@ import org.privote.backend.entity.Election;
 import org.privote.backend.entity.Party;
 import org.privote.backend.entity.enums.CandidateStatus;
 import org.privote.backend.entity.enums.ElectionPhase;
+import org.privote.backend.exception.BusinessConflictException;
 import org.privote.backend.mapper.CandidateMapperImpl;
 import org.privote.backend.repository.CandidateRepository;
 import org.privote.backend.repository.CitizenRepository;
@@ -17,16 +18,9 @@ import org.privote.backend.repository.PartyRepository;
 
 import java.lang.reflect.Proxy;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CandidateServiceTest
 {
@@ -68,8 +62,8 @@ class CandidateServiceTest
         dto.setCitizenCin(citizen.getCin());
         dto.setPartyPublicId(party.getPublicId());
 
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+        BusinessConflictException ex = assertThrows(
+                BusinessConflictException.class,
                 () -> candidateService.createCandidateByCin(election.getPublicId(), dto)
         );
 
@@ -88,8 +82,8 @@ class CandidateServiceTest
         CandidateCreateByCinDto dto = new CandidateCreateByCinDto();
         dto.setCitizenCin(citizen.getCin());
 
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+        BusinessConflictException ex = assertThrows(
+                BusinessConflictException.class,
                 () -> candidateService.createCandidateByCin(election.getPublicId(), dto)
         );
 
@@ -207,10 +201,11 @@ class CandidateServiceTest
                         case "existsByElectionPublicIdAndCitizenKeycloakId" -> candidates.values().stream()
                                 .anyMatch(candidate -> candidate.getElection().getPublicId().equals(args[0])
                                         && candidate.getCitizen().getKeycloakId().equals(args[1]));
-                        case "existsByElectionPublicIdAndCitizenKeycloakIdAndPublicIdNot" -> candidates.values().stream()
-                                .anyMatch(candidate -> candidate.getElection().getPublicId().equals(args[0])
-                                        && candidate.getCitizen().getKeycloakId().equals(args[1])
-                                        && !candidate.getPublicId().equals(args[2]));
+                        case "existsByElectionPublicIdAndCitizenKeycloakIdAndPublicIdNot" ->
+                                candidates.values().stream()
+                                        .anyMatch(candidate -> candidate.getElection().getPublicId().equals(args[0])
+                                                && candidate.getCitizen().getKeycloakId().equals(args[1])
+                                                && !candidate.getPublicId().equals(args[2]));
                         case "save" ->
                         {
                             Candidate candidate = (Candidate) args[0];
@@ -234,7 +229,8 @@ class CandidateServiceTest
                         case "equals" -> proxy == args[0];
                         case "hashCode" -> System.identityHashCode(proxy);
                         case "toString" -> "CandidateRepositoryStub";
-                        default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                        default ->
+                                throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                     }
             );
         }
@@ -246,12 +242,14 @@ class CandidateServiceTest
                     new Class[]{CitizenRepository.class},
                     (proxy, method, args) -> switch (method.getName())
                     {
-                        case "findByKeycloakIdAndIsDeletedFalse" -> Optional.ofNullable(citizensByKeycloakId.get((UUID) args[0]));
+                        case "findByKeycloakIdAndIsDeletedFalse" ->
+                                Optional.ofNullable(citizensByKeycloakId.get((UUID) args[0]));
                         case "findByCinAndIsDeletedFalse" -> Optional.ofNullable(citizensByCin.get((String) args[0]));
                         case "equals" -> proxy == args[0];
                         case "hashCode" -> System.identityHashCode(proxy);
                         case "toString" -> "CitizenRepositoryStub";
-                        default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                        default ->
+                                throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                     }
             );
         }
@@ -267,7 +265,8 @@ class CandidateServiceTest
                         case "equals" -> proxy == args[0];
                         case "hashCode" -> System.identityHashCode(proxy);
                         case "toString" -> "ElectionRepositoryStub";
-                        default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                        default ->
+                                throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                     }
             );
         }
@@ -283,7 +282,8 @@ class CandidateServiceTest
                         case "equals" -> proxy == args[0];
                         case "hashCode" -> System.identityHashCode(proxy);
                         case "toString" -> "PartyRepositoryStub";
-                        default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                        default ->
+                                throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                     }
             );
         }

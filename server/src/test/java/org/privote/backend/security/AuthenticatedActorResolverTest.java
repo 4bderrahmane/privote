@@ -15,6 +15,15 @@ class AuthenticatedActorResolverTest
 {
     private final AuthenticatedActorResolver resolver = new AuthenticatedActorResolver();
 
+    private static Jwt jwtWithClaims(Map<String, Object> claims)
+    {
+        Jwt.Builder builder = Jwt.withTokenValue("token")
+                .header("alg", "none");
+
+        claims.forEach(builder::claim);
+        return builder.build();
+    }
+
     @Test
     void resolvesActorIdFromJwtSubject()
     {
@@ -39,14 +48,5 @@ class AuthenticatedActorResolverTest
         Jwt jwt = jwtWithClaims(Map.of("sub", "not-a-uuid"));
 
         assertThrows(BadCredentialsException.class, () -> resolver.actorId(jwt));
-    }
-
-    private static Jwt jwtWithClaims(Map<String, Object> claims)
-    {
-        Jwt.Builder builder = Jwt.withTokenValue("token")
-                .header("alg", "none");
-
-        claims.forEach(builder::claim);
-        return builder.build();
     }
 }

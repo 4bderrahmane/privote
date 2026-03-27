@@ -11,6 +11,8 @@ import org.privote.backend.entity.VoterCommitment;
 import org.privote.backend.entity.enums.CommitmentStatus;
 import org.privote.backend.entity.enums.ElectionPhase;
 import org.privote.backend.entity.enums.ParticipationStatus;
+import org.privote.backend.exception.BusinessConflictException;
+import org.privote.backend.exception.OperationFailedException;
 import org.privote.backend.repository.CitizenElectionParticipationRepository;
 import org.privote.backend.repository.CitizenRepository;
 import org.privote.backend.repository.ElectionRepository;
@@ -24,18 +26,10 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import java.lang.reflect.Proxy;
 import java.math.BigInteger;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class VoterRegistrationServiceTest
 {
@@ -43,6 +37,57 @@ class VoterRegistrationServiceTest
     private final Map<UUID, Citizen> citizens = new HashMap<>();
     private final Map<String, VoterCommitment> commitments = new HashMap<>();
     private final Map<String, CitizenElectionParticipation> participations = new HashMap<>();
+
+    private static VoterRegistrationRequestDto request(String identityCommitment)
+    {
+        VoterRegistrationRequestDto request = new VoterRegistrationRequestDto();
+        request.setIdentityCommitment(identityCommitment);
+        return request;
+    }
+
+    private static Election election(UUID publicId)
+    {
+        Election election = new Election();
+        election.setPublicId(publicId);
+        election.setTitle("Test election");
+        election.setPhase(ElectionPhase.REGISTRATION);
+        election.setContractAddress("0xabc0000000000000000000000000000000000000");
+        election.setEndTime(Instant.now().plusSeconds(3_600));
+        election.setExternalNullifier(BigInteger.valueOf(42));
+        election.setEncryptionPublicKey(new byte[32]);
+        election.setCoordinator(Citizen.builder().keycloakId(UUID.randomUUID()).build());
+        return election;
+    }
+
+    private static Citizen citizen(UUID keycloakId, boolean eligible)
+    {
+        return Citizen.builder()
+                .keycloakId(keycloakId)
+                .firstName("A")
+                .lastName("B")
+                .cin("CIN-" + keycloakId)
+                .email(keycloakId + "@example.com")
+                .isEligible(eligible)
+                .isDeleted(false)
+                .build();
+    }
+
+    private static String commitmentKey(UUID citizenKeycloakId, UUID electionPublicId)
+    {
+        return citizenKeycloakId + "::" + electionPublicId;
+    }
+
+    private static TransactionOperations transactionOperationsNoOp()
+    {
+        return new TransactionOperations()
+        {
+            @Override
+            public <T> T execute(TransactionCallback<T> action)
+            {
+                return action.doInTransaction(new SimpleTransactionStatus());
+            }
+        };
+    }
 
     @BeforeEach
     void setUp()
@@ -179,8 +224,8 @@ class VoterRegistrationServiceTest
                 transactionOperationsNoOp()
         );
 
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+        BusinessConflictException ex = assertThrows(
+                BusinessConflictException.class,
                 () -> service.registerMyCommitment(electionPublicId, citizenKeycloakId, request("123"))
         );
 
@@ -213,8 +258,8 @@ class VoterRegistrationServiceTest
                 transactionOperationsNoOp()
         );
 
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
+        OperationFailedException ex = assertThrows(
+                OperationFailedException.class,
                 () -> service.registerMyCommitment(electionPublicId, citizenKeycloakId, request("777"))
         );
 
@@ -238,7 +283,8 @@ class VoterRegistrationServiceTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "ElectionRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
     }
@@ -254,7 +300,8 @@ class VoterRegistrationServiceTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "CitizenRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
     }
@@ -293,7 +340,8 @@ class VoterRegistrationServiceTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "CitizenElectionParticipationRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
     }
@@ -335,59 +383,9 @@ class VoterRegistrationServiceTest
                     case "equals" -> proxy == args[0];
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "toString" -> "VoterCommitmentRepositoryStub";
-                    default -> throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
+                    default ->
+                            throw new UnsupportedOperationException("Unexpected repository method: " + method.getName());
                 }
         );
-    }
-
-    private static VoterRegistrationRequestDto request(String identityCommitment)
-    {
-        VoterRegistrationRequestDto request = new VoterRegistrationRequestDto();
-        request.setIdentityCommitment(identityCommitment);
-        return request;
-    }
-
-    private static Election election(UUID publicId)
-    {
-        Election election = new Election();
-        election.setPublicId(publicId);
-        election.setTitle("Test election");
-        election.setPhase(ElectionPhase.REGISTRATION);
-        election.setContractAddress("0xabc0000000000000000000000000000000000000");
-        election.setEndTime(Instant.now().plusSeconds(3_600));
-        election.setExternalNullifier(BigInteger.valueOf(42));
-        election.setEncryptionPublicKey(new byte[32]);
-        election.setCoordinator(Citizen.builder().keycloakId(UUID.randomUUID()).build());
-        return election;
-    }
-
-    private static Citizen citizen(UUID keycloakId, boolean eligible)
-    {
-        return Citizen.builder()
-                .keycloakId(keycloakId)
-                .firstName("A")
-                .lastName("B")
-                .cin("CIN-" + keycloakId)
-                .email(keycloakId + "@example.com")
-                .isEligible(eligible)
-                .isDeleted(false)
-                .build();
-    }
-
-    private static String commitmentKey(UUID citizenKeycloakId, UUID electionPublicId)
-    {
-        return citizenKeycloakId + "::" + electionPublicId;
-    }
-
-    private static TransactionOperations transactionOperationsNoOp()
-    {
-        return new TransactionOperations()
-        {
-            @Override
-            public <T> T execute(TransactionCallback<T> action)
-            {
-                return action.doInTransaction(new SimpleTransactionStatus());
-            }
-        };
     }
 }
