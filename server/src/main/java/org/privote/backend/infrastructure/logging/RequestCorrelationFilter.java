@@ -23,6 +23,42 @@ public class RequestCorrelationFilter extends OncePerRequestFilter
     private static final int MAX_REQUEST_ID_LENGTH = 128;
     private static final Pattern SAFE_REQUEST_ID = Pattern.compile("^[A-Za-z0-9._-]{1,128}$");
 
+    private static int resolveStatus(HttpServletResponse response, Exception failure)
+    {
+        if (failure == null)
+        {
+            return response.getStatus();
+        }
+        return response.getStatus() >= 400 ? response.getStatus() : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+    }
+
+    private static void restorePreviousRequestId(String previousRequestId)
+    {
+        if (previousRequestId == null)
+        {
+            MDC.remove(MDC_REQUEST_ID_KEY);
+        } else
+        {
+            MDC.put(MDC_REQUEST_ID_KEY, previousRequestId);
+        }
+    }
+
+    private static String resolveRequestId(String candidate)
+    {
+        if (candidate == null)
+        {
+            return UUID.randomUUID().toString();
+        }
+
+        String normalized = candidate.trim();
+        if (normalized.isEmpty() || normalized.length() > MAX_REQUEST_ID_LENGTH || !SAFE_REQUEST_ID.matcher(normalized).matches())
+        {
+            return UUID.randomUUID().toString();
+        }
+
+        return normalized;
+    }
+
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -65,42 +101,5 @@ public class RequestCorrelationFilter extends OncePerRequestFilter
 
             restorePreviousRequestId(previousRequestId);
         }
-    }
-
-    private static int resolveStatus(HttpServletResponse response, Exception failure)
-    {
-        if (failure == null)
-        {
-            return response.getStatus();
-        }
-        return response.getStatus() >= 400 ? response.getStatus() : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-    }
-
-    private static void restorePreviousRequestId(String previousRequestId)
-    {
-        if (previousRequestId == null)
-        {
-            MDC.remove(MDC_REQUEST_ID_KEY);
-        }
-        else
-        {
-            MDC.put(MDC_REQUEST_ID_KEY, previousRequestId);
-        }
-    }
-
-    private static String resolveRequestId(String candidate)
-    {
-        if (candidate == null)
-        {
-            return UUID.randomUUID().toString();
-        }
-
-        String normalized = candidate.trim();
-        if (normalized.isEmpty() || normalized.length() > MAX_REQUEST_ID_LENGTH || !SAFE_REQUEST_ID.matcher(normalized).matches())
-        {
-            return UUID.randomUUID().toString();
-        }
-
-        return normalized;
     }
 }
