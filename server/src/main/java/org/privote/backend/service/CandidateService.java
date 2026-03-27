@@ -13,6 +13,8 @@ import org.privote.backend.entity.Election;
 import org.privote.backend.entity.Party;
 import org.privote.backend.entity.enums.CandidateStatus;
 import org.privote.backend.entity.enums.ElectionPhase;
+import org.privote.backend.exception.BusinessConflictException;
+import org.privote.backend.exception.RequestValidationException;
 import org.privote.backend.exception.ResourceNotFoundException;
 import org.privote.backend.mapper.CandidateMapper;
 import org.privote.backend.repository.CandidateRepository;
@@ -124,7 +126,7 @@ public class CandidateService
     {
         if (patchDto == null)
         {
-            throw new IllegalArgumentException("Candidate patch payload is required");
+            throw new RequestValidationException("Candidate patch payload is required");
         }
 
         Candidate candidate = getRequiredCandidate(publicId);
@@ -167,15 +169,15 @@ public class CandidateService
     {
         if (candidateDto == null)
         {
-            throw new IllegalArgumentException("Candidate payload is required");
+            throw new RequestValidationException("Candidate payload is required");
         }
         if (candidateDto.getCitizenPublicId() == null)
         {
-            throw new IllegalArgumentException("citizenPublicId is required");
+            throw new RequestValidationException("citizenPublicId is required");
         }
         if (candidateDto.getElectionPublicId() == null)
         {
-            throw new IllegalArgumentException("electionPublicId is required");
+            throw new RequestValidationException("electionPublicId is required");
         }
     }
 
@@ -183,11 +185,11 @@ public class CandidateService
     {
         if (candidateDto == null)
         {
-            throw new IllegalArgumentException("Candidate payload is required");
+            throw new RequestValidationException("Candidate payload is required");
         }
         if (candidateDto.getCitizenCin() == null || candidateDto.getCitizenCin().isBlank())
         {
-            throw new IllegalArgumentException("citizenCin is required");
+            throw new RequestValidationException("citizenCin is required");
         }
     }
 
@@ -196,14 +198,14 @@ public class CandidateService
         boolean exists = currentCandidatePublicId == null
                 ? candidateRepository.existsByElectionPublicIdAndCitizenKeycloakId(electionPublicId, citizenPublicId)
                 : candidateRepository.existsByElectionPublicIdAndCitizenKeycloakIdAndPublicIdNot(
-                        electionPublicId,
-                        citizenPublicId,
-                        currentCandidatePublicId
-                );
+                electionPublicId,
+                citizenPublicId,
+                currentCandidatePublicId
+        );
 
         if (exists)
         {
-            throw new IllegalStateException("Citizen is already registered as a candidate for this election");
+            throw new BusinessConflictException("Citizen is already registered as a candidate for this election");
         }
     }
 
@@ -266,7 +268,7 @@ public class CandidateService
 
         if (!member)
         {
-            throw new IllegalStateException("Citizen must be a member of the selected party");
+            throw new BusinessConflictException("Citizen must be a member of the selected party");
         }
     }
 
@@ -274,7 +276,7 @@ public class CandidateService
     {
         if (election.getPhase() != ElectionPhase.REGISTRATION)
         {
-            throw new IllegalStateException("Candidates can only be managed while the election is in REGISTRATION");
+            throw new BusinessConflictException("Candidates can only be managed while the election is in REGISTRATION");
         }
     }
 }
