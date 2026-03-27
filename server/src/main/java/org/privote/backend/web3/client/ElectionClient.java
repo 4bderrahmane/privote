@@ -20,6 +20,25 @@ public class ElectionClient
     private final TransactionManager txManager;
     private final ContractGasProvider gasProvider;
 
+    private static String normalizeAddress(String address)
+    {
+        if (address == null)
+        {
+            throw new IllegalArgumentException("electionAddress is required");
+        }
+
+        String value = address.trim();
+        if (!value.startsWith("0x"))
+        {
+            value = "0x" + value;
+        }
+        if (value.length() != 42)
+        {
+            throw new IllegalArgumentException("electionAddress must be a 20-byte hex address");
+        }
+        return value.toLowerCase();
+    }
+
     public TransactionReceipt addVoter(String electionAddress, BigInteger identityCommitment) throws Exception
     {
         var election = loadElection(electionAddress);
@@ -79,24 +98,5 @@ public class ElectionClient
                 txManager,
                 gasProvider
         );
-    }
-
-    private static String normalizeAddress(String address)
-    {
-        if (address == null)
-        {
-            throw new IllegalArgumentException("electionAddress is required");
-        }
-
-        String value = address.trim();
-        if (!value.startsWith("0x"))
-        {
-            value = "0x" + value;
-        }
-        if (value.length() != 42)
-        {
-            throw new IllegalArgumentException("electionAddress must be a 20-byte hex address");
-        }
-        return value.toLowerCase();
     }
 }
