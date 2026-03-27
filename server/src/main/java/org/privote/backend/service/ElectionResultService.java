@@ -2,15 +2,13 @@ package org.privote.backend.service;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.privote.backend.dto.result.ElectionResultCandidateDto;
-import org.privote.backend.dto.result.ElectionResultResponseDto;
-import org.privote.backend.dto.result.PublishElectionResultsRequestDto;
-import org.privote.backend.dto.result.TallyBallotAssignmentDto;
-import org.privote.backend.dto.result.TallyBallotResponseDto;
+import org.privote.backend.dto.result.*;
 import org.privote.backend.entity.Ballot;
 import org.privote.backend.entity.Candidate;
 import org.privote.backend.entity.Election;
 import org.privote.backend.entity.enums.ElectionPhase;
+import org.privote.backend.exception.BusinessConflictException;
+import org.privote.backend.exception.RequestValidationException;
 import org.privote.backend.exception.ResourceNotFoundException;
 import org.privote.backend.repository.BallotRepository;
 import org.privote.backend.repository.CandidateRepository;
@@ -20,15 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Base64;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @Transactional
@@ -39,6 +29,40 @@ public class ElectionResultService
     private final BallotRepository ballotRepository;
     private final CandidateRepository candidateRepository;
     private final CitizenElectionParticipationRepository participationRepository;
+
+    private static void requireTallyPhase(Election election)
+    {
+        if (election.getPhase() != ElectionPhase.TALLY)
+        {
+            throw new BusinessConflictException("Results are only available once the election enters TALLY");
+        }
+    }
+
+    private static String buildFullName(Candidate candidate)
+    {
+        return java.util.stream.Stream.of(
+                        candidate.getCitizen() == null ? null : candidate.getCitizen().getFirstName(),
+                        candidate.getCitizen() == null ? null : candidate.getCitizen().getLastName()
+                )
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .reduce((left, right) -> left + " " + right)
+                .orElse("");
+    }
+
+    private static double percentage(long numerator, long denominator)
+    {
+        if (numerator <= 0 || denominator <= 0)
+        {
+            return 0.0d;
+        }
+
+        return BigDecimal.valueOf(numerator)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(denominator), 1, RoundingMode.HALF_UP)
+                .doubleValue();
+    }
 
     public ElectionResultResponseDto getElectionResults(UUID electionPublicId)
     {
@@ -62,7 +86,7 @@ public class ElectionResultService
     {
         if (request == null)
         {
-            throw new IllegalArgumentException("Results payload is required");
+            throw new RequestValidationException("Results payload is required");
         }
 
         Election election = requireElection(electionPublicId);
@@ -75,14 +99,14 @@ public class ElectionResultService
         {
             if (!assignments.isEmpty())
             {
-                throw new IllegalArgumentException("No ballots exist for this election");
+                throw new RequestValidationException("No ballots exist for this election");
             }
             return toResultResponse(election, ballots);
         }
 
         if (assignments.size() != ballots.size())
         {
-            throw new IllegalArgumentException("Results must resolve every ballot in the election");
+            throw new RequestValidationException("Results must resolve every ballot in the election");
         }
 
         Map<UUID, Ballot> ballotsById = new HashMap<>();
@@ -100,12 +124,12 @@ public class ElectionResultService
         {
             if (assignment == null || assignment.getBallotId() == null || assignment.getCandidatePublicId() == null)
             {
-                throw new IllegalArgumentException("Each tally assignment requires ballotId and candidatePublicId");
+                throw new RequestValidationException("Each tally assignment requires ballotId and candidatePublicId");
             }
 
             if (!seenBallotIds.add(assignment.getBallotId()))
             {
-                throw new IllegalArgumentException("Duplicate ballotId found in results payload");
+                throw new RequestValidationException("Duplicate ballotId found in results payload");
             }
 
             Ballot ballot = ballotsById.get(assignment.getBallotId());
@@ -125,7 +149,7 @@ public class ElectionResultService
 
         if (seenBallotIds.size() != ballots.size())
         {
-            throw new IllegalArgumentException("Results payload does not cover every ballot");
+            throw new RequestValidationException("Results payload does not cover every ballot");
         }
 
         ballotRepository.saveAll(ballots);
@@ -136,14 +160,6 @@ public class ElectionResultService
     {
         return electionRepository.findByPublicId(electionPublicId)
                 .orElseThrow(() -> new ResourceNotFoundException(Election.class.getSimpleName(), "UUID", electionPublicId));
-    }
-
-    private static void requireTallyPhase(Election election)
-    {
-        if (election.getPhase() != ElectionPhase.TALLY)
-        {
-            throw new IllegalStateException("Results are only available once the election enters TALLY");
-        }
     }
 
     private TallyBallotResponseDto toTallyBallotResponse(Ballot ballot)
@@ -211,31 +227,5 @@ public class ElectionResultService
                 percentage(totalVotes, registeredVoters),
                 candidateResults
         );
-    }
-
-    private static String buildFullName(Candidate candidate)
-    {
-        return java.util.stream.Stream.of(
-                        candidate.getCitizen() == null ? null : candidate.getCitizen().getFirstName(),
-                        candidate.getCitizen() == null ? null : candidate.getCitizen().getLastName()
-                )
-                .filter(Objects::nonNull)
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .reduce((left, right) -> left + " " + right)
-                .orElse("");
-    }
-
-    private static double percentage(long numerator, long denominator)
-    {
-        if (numerator <= 0 || denominator <= 0)
-        {
-            return 0.0d;
-        }
-
-        return BigDecimal.valueOf(numerator)
-                .multiply(BigDecimal.valueOf(100))
-                .divide(BigDecimal.valueOf(denominator), 1, RoundingMode.HALF_UP)
-                .doubleValue();
     }
 }
