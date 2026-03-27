@@ -1,17 +1,18 @@
 package org.privote.backend.service;
 
-import org.springframework.stereotype.Service;
-
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.privote.backend.dto.party.PartyCreateDto;
 import org.privote.backend.dto.party.PartyPatchDto;
 import org.privote.backend.entity.Citizen;
 import org.privote.backend.entity.Party;
+import org.privote.backend.exception.BusinessConflictException;
+import org.privote.backend.exception.RequestValidationException;
 import org.privote.backend.exception.ResourceNotFoundException;
-import org.privote.backend.repository.CitizenRepository;
 import org.privote.backend.mapper.PartyMapper;
+import org.privote.backend.repository.CitizenRepository;
 import org.privote.backend.repository.PartyRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -63,13 +64,13 @@ public class PartyService
     {
         if (patchDto == null)
         {
-            throw new IllegalArgumentException("Party patch payload is required");
+            throw new RequestValidationException("Party patch payload is required");
         }
         if (patchDto.getName() != null)
         {
             if (patchDto.getName().isBlank())
             {
-                throw new IllegalArgumentException("name cannot be blank");
+                throw new RequestValidationException("name cannot be blank");
             }
             ensurePartyNameAvailable(patchDto.getName(), publicId);
         }
@@ -95,16 +96,16 @@ public class PartyService
     {
         if (partyDto == null)
         {
-            throw new IllegalArgumentException("Party payload is required");
+            throw new RequestValidationException("Party payload is required");
         }
         if (partyDto.getName() == null || partyDto.getName().isBlank())
         {
-            throw new IllegalArgumentException("name is required");
+            throw new RequestValidationException("name is required");
         }
 
         if (requireMembers && (partyDto.getMemberCins() == null || partyDto.getMemberCins().isEmpty()))
         {
-            throw new IllegalArgumentException("at least one member CIN is required");
+            throw new RequestValidationException("at least one member CIN is required");
         }
     }
 
@@ -117,7 +118,7 @@ public class PartyService
 
         if (exists)
         {
-            throw new IllegalStateException("Party name already used");
+            throw new BusinessConflictException("Party name already used");
         }
     }
 
@@ -127,7 +128,7 @@ public class PartyService
         {
             if (requireMembers)
             {
-                throw new IllegalArgumentException("at least one member CIN is required");
+                throw new RequestValidationException("at least one member CIN is required");
             }
             return new ArrayList<>();
         }
@@ -144,7 +145,7 @@ public class PartyService
 
         if (uniqueCins.isEmpty() && requireMembers)
         {
-            throw new IllegalArgumentException("at least one member CIN is required");
+            throw new RequestValidationException("at least one member CIN is required");
         }
 
         var members = new ArrayList<Citizen>();
