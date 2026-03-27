@@ -29,6 +29,40 @@ public class ElectionFactoryClient
     private final ContractGasProvider gasProvider;
     private final Web3jProperties props;
 
+    private static String normalizeNullableAddress(String address)
+    {
+        if (address == null || address.isBlank())
+        {
+            return null;
+        }
+
+        return normalizeAddress(address);
+    }
+
+    private static String normalizeAddress(String address)
+    {
+        if (address == null)
+        {
+            throw new IllegalArgumentException("address is required");
+        }
+
+        String value = address.trim();
+        if (!value.startsWith("0x"))
+        {
+            value = "0x" + value;
+        }
+        if (value.length() != 42)
+        {
+            throw new IllegalArgumentException("address must be a 20-byte hex value");
+        }
+        return value.toLowerCase();
+    }
+
+    private static boolean isZeroAddress(String address)
+    {
+        return "0x0000000000000000000000000000000000000000".equals(address);
+    }
+
     public String createElection(UUID electionPublicId, BigInteger endTimeSeconds, byte[] encryptionPubKey32) throws Exception
     {
         return createElection(Web3Types.uuidToBytes16(electionPublicId), endTimeSeconds, encryptionPubKey32);
@@ -183,39 +217,5 @@ public class ElectionFactoryClient
         {
             throw new IllegalStateException("Failed to verify electionFactoryAddress: " + address, ex);
         }
-    }
-
-    private static String normalizeNullableAddress(String address)
-    {
-        if (address == null || address.isBlank())
-        {
-            return null;
-        }
-
-        return normalizeAddress(address);
-    }
-
-    private static String normalizeAddress(String address)
-    {
-        if (address == null)
-        {
-            throw new IllegalArgumentException("address is required");
-        }
-
-        String value = address.trim();
-        if (!value.startsWith("0x"))
-        {
-            value = "0x" + value;
-        }
-        if (value.length() != 42)
-        {
-            throw new IllegalArgumentException("address must be a 20-byte hex value");
-        }
-        return value.toLowerCase();
-    }
-
-    private static boolean isZeroAddress(String address)
-    {
-        return "0x0000000000000000000000000000000000000000".equals(address);
     }
 }
