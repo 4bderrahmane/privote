@@ -31,6 +31,40 @@ public class AdminAuditRunner
         return new AuditContext(adminKeycloakId, action, targetType, targetId);
     }
 
+    public static @NonNull String summarizeException(RuntimeException ex)
+    {
+        String message = ex.getMessage();
+        if (message == null || message.isBlank())
+        {
+            return ex.getClass().getSimpleName();
+        }
+        return message;
+    }
+
+    public static @Nullable String detail(String label, @Nullable Object value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        String normalized = value.toString().trim();
+        if (normalized.isEmpty())
+        {
+            return null;
+        }
+        return label + "=" + normalized;
+    }
+
+    public static @Nullable String joinDetails(@Nullable String... details)
+    {
+        String joined = Arrays.stream(details)
+                .filter(detail -> detail != null && !detail.isBlank())
+                .collect(Collectors.joining(", "));
+
+        return joined.isBlank() ? null : joined;
+    }
+
     public <T> T run(
             AuditContext context,
             Supplier<T> operation,
@@ -104,39 +138,5 @@ public class AdminAuditRunner
             @Nullable String targetId
     )
     {
-    }
-
-    public static @NonNull String summarizeException(RuntimeException ex)
-    {
-        String message = ex.getMessage();
-        if (message == null || message.isBlank())
-        {
-            return ex.getClass().getSimpleName();
-        }
-        return message;
-    }
-
-    public static @Nullable String detail(String label, @Nullable Object value)
-    {
-        if (value == null)
-        {
-            return null;
-        }
-
-        String normalized = value.toString().trim();
-        if (normalized.isEmpty())
-        {
-            return null;
-        }
-        return label + "=" + normalized;
-    }
-
-    public static @Nullable String joinDetails(@Nullable String... details)
-    {
-        String joined = Arrays.stream(details)
-                .filter(detail -> detail != null && !detail.isBlank())
-                .collect(Collectors.joining(", "));
-
-        return joined.isBlank() ? null : joined;
     }
 }

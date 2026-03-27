@@ -23,6 +23,27 @@ public class AuditLogService
     private final SystemLogRepository systemLogRepository;
     private final CitizenRepository citizenRepository;
 
+    private static @Nullable String truncateToNull(@Nullable String value, int maxLength)
+    {
+        String normalized = blankToNull(value);
+        if (normalized == null)
+        {
+            return null;
+        }
+        return normalized.length() <= maxLength ? normalized : normalized.substring(0, maxLength);
+    }
+
+    private static @Nullable String blankToNull(@Nullable String value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
     public void logAction(
             @Nullable UUID adminKeycloakId,
             SystemLogAction action,
@@ -48,32 +69,10 @@ public class AuditLogService
             systemLog.setDetails(blankToNull(details));
 
             systemLogRepository.save(systemLog);
-        }
-        catch (RuntimeException ex)
+        } catch (RuntimeException ex)
         {
             log.error("Failed to persist audit log action={} outcome={} targetType={} targetId={}",
                     action, outcome, targetType, targetId, ex);
         }
-    }
-
-    private static @Nullable String truncateToNull(@Nullable String value, int maxLength)
-    {
-        String normalized = blankToNull(value);
-        if (normalized == null)
-        {
-            return null;
-        }
-        return normalized.length() <= maxLength ? normalized : normalized.substring(0, maxLength);
-    }
-
-    private static @Nullable String blankToNull(@Nullable String value)
-    {
-        if (value == null)
-        {
-            return null;
-        }
-
-        String normalized = value.trim();
-        return normalized.isEmpty() ? null : normalized;
     }
 }
