@@ -10,8 +10,7 @@ import org.privote.backend.entity.VoterCommitment;
 import org.privote.backend.entity.enums.CommitmentStatus;
 import org.privote.backend.entity.enums.ElectionPhase;
 import org.privote.backend.entity.enums.ParticipationStatus;
-import org.privote.backend.exception.ResourceNotFoundException;
-import org.privote.backend.exception.VoteAlreadyCastException;
+import org.privote.backend.exception.*;
 import org.privote.backend.repository.BallotRepository;
 import org.privote.backend.repository.CitizenElectionParticipationRepository;
 import org.privote.backend.repository.ElectionRepository;
@@ -42,156 +41,23 @@ public class VoteService
     private final ElectionClient electionClient;
     private final TransactionOperations transactionOperations;
 
-    public BallotCastResponseDto castMyVote(
-            UUID electionPublicId,
-            UUID citizenKeycloakId,
-            BallotCastRequestDto request
-    )
-    {
-        validateRequest(request);
-
-        Election election = resolveElection(electionPublicId);
-        requireVotingOpen(election);
-        String contractAddress = requireContractAddress(election);
-
-        VoterCommitment commitment = voterCommitmentRepository
-                .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
-                .orElseThrow(() -> new IllegalStateException("Citizen has not registered a voting identity for this election"));
-        requireOnChainCommitment(commitment);
-
-        BigInteger nullifier = parsePositiveInteger(request.getNullifier(), "nullifier");
-        List<BigInteger> proof = parseProof(request.getProof());
-        String normalizedNullifier = nullifier.toString();
-
-        if (ballotRepository.findByElectionPublicIdAndNullifier(electionPublicId, normalizedNullifier).isPresent())
-        {
-            throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
-        }
-
-        try
-        {
-            if (electionClient.isNullifierUsed(contractAddress, nullifier))
-            {
-                throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
-            }
-
-            TransactionReceipt receipt = electionClient.castVote(
-                    contractAddress,
-                    request.getCiphertext(),
-                    nullifier,
-                    proof
-            );
-            String transactionHash = requireTransactionHash(receipt);
-            Long blockNumber = toLongOrNull(receipt == null ? null : receipt.getBlockNumber());
-
-            BallotCastResponseDto response = persistCastVote(
-                    electionPublicId,
-                    citizenKeycloakId,
-                    request.getCiphertext(),
-                    proof,
-                    normalizedNullifier,
-                    transactionHash,
-                    blockNumber
-            );
-            if (response == null)
-            {
-                throw new IllegalStateException("Failed to persist cast vote");
-            }
-            return response;
-        }
-        catch (VoteAlreadyCastException ex)
-        {
-            throw ex;
-        }
-        catch (DataIntegrityViolationException ex)
-        {
-            throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
-        }
-        catch (Exception ex)
-        {
-            if (isDataConflict(ex))
-            {
-                throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
-            }
-            if (ballotRepository.findByElectionPublicIdAndNullifier(electionPublicId, normalizedNullifier).isPresent())
-            {
-                throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
-            }
-            throw new IllegalStateException("Failed to cast vote on chain: " + rootCauseMessage(ex), ex);
-        }
-    }
-
-    private BallotCastResponseDto persistCastVote(
-            UUID electionPublicId,
-            UUID citizenKeycloakId,
-            byte[] ciphertext,
-            List<BigInteger> proof,
-            String normalizedNullifier,
-            String transactionHash,
-            Long blockNumber
-    )
-    {
-        return transactionOperations.execute(status -> {
-            Election election = resolveElection(electionPublicId);
-            VoterCommitment commitment = voterCommitmentRepository
-                    .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
-                    .orElseThrow(() -> new IllegalStateException("Citizen has not registered a voting identity for this election"));
-            requireOnChainCommitment(commitment);
-
-            CitizenElectionParticipation participation = participationRepository
-                    .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
-                    .orElseGet(() -> {
-                        CitizenElectionParticipation created = new CitizenElectionParticipation();
-                        created.setCitizen(commitment.getCitizen());
-                        created.setElection(election);
-                        created.setStatus(ParticipationStatus.REGISTERED);
-                        return created;
-                    });
-
-            if (ballotRepository.findByElectionPublicIdAndNullifier(electionPublicId, normalizedNullifier).isPresent())
-            {
-                throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
-            }
-
-            Ballot ballot = new Ballot();
-            ballot.setElection(election);
-            ballot.setCiphertext(ciphertext.clone());
-            ballot.setCiphertextHash(normalizeHex(Numeric.toHexString(Hash.sha3(ciphertext))));
-            ballot.setNullifier(normalizedNullifier);
-            ballot.setZkProof(serializeProof(proof));
-            ballot.setTransactionHash(transactionHash);
-            ballot.setBlockNumber(blockNumber);
-
-            Ballot storedBallot = ballotRepository.saveAndFlush(ballot);
-            participation.setStatus(ParticipationStatus.CAST);
-            participationRepository.save(participation);
-            return BallotCastResponseDto.fromEntity(storedBallot);
-        });
-    }
-
-    private Election resolveElection(UUID electionPublicId)
-    {
-        return electionRepository.findByPublicId(electionPublicId)
-                .orElseThrow(() -> new ResourceNotFoundException(Election.class.getSimpleName(), "UUID", electionPublicId));
-    }
-
     private static void validateRequest(BallotCastRequestDto request)
     {
         if (request == null)
         {
-            throw new IllegalArgumentException("Vote payload is required");
+            throw new RequestValidationException("Vote payload is required");
         }
         if (request.getCiphertext() == null || request.getCiphertext().length == 0)
         {
-            throw new IllegalArgumentException("ciphertext is required");
+            throw new RequestValidationException("ciphertext is required");
         }
         if (request.getNullifier() == null || request.getNullifier().isBlank())
         {
-            throw new IllegalArgumentException("nullifier is required");
+            throw new RequestValidationException("nullifier is required");
         }
         if (request.getProof() == null || request.getProof().isEmpty())
         {
-            throw new IllegalArgumentException("proof is required");
+            throw new RequestValidationException("proof is required");
         }
     }
 
@@ -199,11 +65,11 @@ public class VoteService
     {
         if (election.getPhase() != ElectionPhase.VOTING)
         {
-            throw new IllegalStateException("Election is not currently accepting votes");
+            throw new BusinessConflictException("Election is not currently accepting votes");
         }
         if (election.getEndTime() != null && !election.getEndTime().isAfter(Instant.now()))
         {
-            throw new IllegalStateException("Election voting window has already elapsed");
+            throw new BusinessConflictException("Election voting window has already elapsed");
         }
     }
 
@@ -211,7 +77,7 @@ public class VoteService
     {
         if (election.getContractAddress() == null || election.getContractAddress().isBlank())
         {
-            throw new IllegalStateException("Election must be deployed before votes can be cast");
+            throw new BusinessConflictException("Election must be deployed before votes can be cast");
         }
         return election.getContractAddress();
     }
@@ -220,11 +86,11 @@ public class VoteService
     {
         if (commitment.getStatus() != CommitmentStatus.ON_CHAIN)
         {
-            throw new IllegalStateException("Citizen must complete voter registration before voting");
+            throw new BusinessConflictException("Citizen must complete voter registration before voting");
         }
         if (commitment.getIdentityCommitment() == null || commitment.getIdentityCommitment().isBlank())
         {
-            throw new IllegalStateException("Citizen must complete voter registration before voting");
+            throw new BusinessConflictException("Citizen must complete voter registration before voting");
         }
     }
 
@@ -232,7 +98,7 @@ public class VoteService
     {
         if (value == null || value.isBlank())
         {
-            throw new IllegalArgumentException(label + " is required");
+            throw new RequestValidationException(label + " is required");
         }
 
         try
@@ -240,13 +106,12 @@ public class VoteService
             BigInteger parsed = new BigInteger(value.trim());
             if (parsed.signum() <= 0)
             {
-                throw new IllegalArgumentException(label + " must be a positive decimal integer");
+                throw new RequestValidationException(label + " must be a positive decimal integer");
             }
             return parsed;
-        }
-        catch (NumberFormatException ex)
+        } catch (NumberFormatException ex)
         {
-            throw new IllegalArgumentException(label + " must be a positive decimal integer", ex);
+            throw new RequestValidationException(label + " must be a positive decimal integer", ex);
         }
     }
 
@@ -254,7 +119,7 @@ public class VoteService
     {
         if (proof == null || proof.size() != 8)
         {
-            throw new IllegalArgumentException("proof must contain exactly 8 field elements");
+            throw new RequestValidationException("proof must contain exactly 8 field elements");
         }
 
         List<BigInteger> parsed = new ArrayList<>(proof.size());
@@ -282,8 +147,7 @@ public class VoteService
         try
         {
             return value.longValueExact();
-        }
-        catch (ArithmeticException ex)
+        } catch (ArithmeticException ex)
         {
             return null;
         }
@@ -294,7 +158,7 @@ public class VoteService
         String transactionHash = normalizeHex(receipt == null ? null : receipt.getTransactionHash());
         if (transactionHash == null)
         {
-            throw new IllegalStateException("Blockchain transaction hash is required in the vote receipt");
+            throw new OperationFailedException("Blockchain transaction hash is required in the vote receipt");
         }
         return transactionHash;
     }
@@ -346,5 +210,137 @@ public class VoteService
             return current.getClass().getSimpleName();
         }
         return message;
+    }
+
+    public BallotCastResponseDto castMyVote(
+            UUID electionPublicId,
+            UUID citizenKeycloakId,
+            BallotCastRequestDto request
+    )
+    {
+        validateRequest(request);
+
+        Election election = resolveElection(electionPublicId);
+        requireVotingOpen(election);
+        String contractAddress = requireContractAddress(election);
+
+        VoterCommitment commitment = voterCommitmentRepository
+                .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
+                .orElseThrow(() -> new BusinessConflictException("Citizen has not registered a voting identity for this election"));
+        requireOnChainCommitment(commitment);
+
+        BigInteger nullifier = parsePositiveInteger(request.getNullifier(), "nullifier");
+        List<BigInteger> proof = parseProof(request.getProof());
+        String normalizedNullifier = nullifier.toString();
+
+        if (ballotRepository.findByElectionPublicIdAndNullifier(electionPublicId, normalizedNullifier).isPresent())
+        {
+            throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
+        }
+
+        try
+        {
+            if (electionClient.isNullifierUsed(contractAddress, nullifier))
+            {
+                throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
+            }
+
+            TransactionReceipt receipt = electionClient.castVote(
+                    contractAddress,
+                    request.getCiphertext(),
+                    nullifier,
+                    proof
+            );
+            String transactionHash = requireTransactionHash(receipt);
+            Long blockNumber = toLongOrNull(receipt == null ? null : receipt.getBlockNumber());
+
+            BallotCastResponseDto response = persistCastVote(
+                    electionPublicId,
+                    citizenKeycloakId,
+                    request.getCiphertext(),
+                    proof,
+                    normalizedNullifier,
+                    transactionHash,
+                    blockNumber
+            );
+            if (response == null)
+            {
+                throw new OperationFailedException("Failed to persist cast vote");
+            }
+            return response;
+        } catch (VoteAlreadyCastException ex)
+        {
+            throw ex;
+        } catch (DataIntegrityViolationException ex)
+        {
+            throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
+        } catch (Exception ex)
+        {
+            if (isDataConflict(ex))
+            {
+                throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
+            }
+            if (ballotRepository.findByElectionPublicIdAndNullifier(electionPublicId, normalizedNullifier).isPresent())
+            {
+                throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
+            }
+            throw new OperationFailedException("Failed to cast vote on chain: " + rootCauseMessage(ex), ex);
+        }
+    }
+
+    private BallotCastResponseDto persistCastVote(
+            UUID electionPublicId,
+            UUID citizenKeycloakId,
+            byte[] ciphertext,
+            List<BigInteger> proof,
+            String normalizedNullifier,
+            String transactionHash,
+            Long blockNumber
+    )
+    {
+        return transactionOperations.execute(status ->
+        {
+            Election election = resolveElection(electionPublicId);
+            VoterCommitment commitment = voterCommitmentRepository
+                    .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
+                    .orElseThrow(() -> new BusinessConflictException("Citizen has not registered a voting identity for this election"));
+            requireOnChainCommitment(commitment);
+
+            CitizenElectionParticipation participation = participationRepository
+                    .findByCitizenKeycloakIdAndElectionPublicId(citizenKeycloakId, electionPublicId)
+                    .orElseGet(() ->
+                    {
+                        CitizenElectionParticipation created = new CitizenElectionParticipation();
+                        created.setCitizen(commitment.getCitizen());
+                        created.setElection(election);
+                        created.setStatus(ParticipationStatus.REGISTERED);
+                        return created;
+                    });
+
+            if (ballotRepository.findByElectionPublicIdAndNullifier(electionPublicId, normalizedNullifier).isPresent())
+            {
+                throw new VoteAlreadyCastException("A vote has already been cast for this election identity");
+            }
+
+            Ballot ballot = new Ballot();
+            ballot.setElection(election);
+            ballot.setCiphertext(ciphertext.clone());
+            ballot.setCiphertextHash(normalizeHex(Numeric.toHexString(Hash.sha3(ciphertext))));
+            ballot.setNullifier(normalizedNullifier);
+            ballot.setZkProof(serializeProof(proof));
+            ballot.setTransactionHash(transactionHash);
+            ballot.setBlockNumber(blockNumber);
+
+            Ballot storedBallot = ballotRepository.saveAndFlush(ballot);
+            participation.setStatus(ParticipationStatus.CAST);
+            participationRepository.save(participation);
+            return BallotCastResponseDto.fromEntity(storedBallot);
+        });
+    }
+
+    private Election resolveElection(UUID electionPublicId)
+    {
+        return electionRepository.findByPublicId(electionPublicId)
+                .orElseThrow(() -> new ResourceNotFoundException(Election.class.getSimpleName(), "UUID", electionPublicId));
     }
 }
