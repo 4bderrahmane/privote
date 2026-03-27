@@ -7,6 +7,7 @@ import org.privote.backend.dto.election.ElectionEndRequestDto;
 import org.privote.backend.dto.election.ElectionPatchDto;
 import org.privote.backend.entity.Election;
 import org.privote.backend.entity.enums.SystemLogAction;
+import org.privote.backend.exception.RequestValidationException;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -122,7 +123,7 @@ public class ElectionAdminService
                 {
                     if (request == null || request.getDecryptionMaterial() == null || request.getDecryptionMaterial().length == 0)
                     {
-                        throw new IllegalArgumentException("decryptionMaterial is required");
+                        throw new RequestValidationException("decryptionMaterial is required");
                     }
 
                     return electionLifecycleService.endElection(publicId, request.getDecryptionMaterial());
