@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.privote.backend.dto.citizen.CitizenSelfUpdateRequest;
 import org.privote.backend.dto.citizen.CitizenSyncRequest;
 import org.privote.backend.entity.Citizen;
+import org.privote.backend.exception.BusinessConflictException;
+import org.privote.backend.exception.RequestValidationException;
 import org.privote.backend.exception.ResourceNotFoundException;
 import org.privote.backend.mapper.CitizenMapper;
 import org.privote.backend.repository.CitizenRepository;
@@ -75,18 +77,18 @@ public class CitizenService
 
     public void sync(CitizenSyncRequest req)
     {
-        if (req.keycloakId() == null) throw new IllegalArgumentException("keycloakId is required");
-        if (req.cin() == null || req.cin().isBlank()) throw new IllegalArgumentException("cin is required");
-        if (req.email() == null || req.email().isBlank()) throw new IllegalArgumentException("email is required");
+        if (req.keycloakId() == null) throw new RequestValidationException("keycloakId is required");
+        if (req.cin() == null || req.cin().isBlank()) throw new RequestValidationException("cin is required");
+        if (req.email() == null || req.email().isBlank()) throw new RequestValidationException("email is required");
         if (req.firstName() == null || req.firstName().isBlank())
-            throw new IllegalArgumentException("firstName is required");
+            throw new RequestValidationException("firstName is required");
         if (req.lastName() == null || req.lastName().isBlank())
-            throw new IllegalArgumentException("lastName is required");
+            throw new RequestValidationException("lastName is required");
 
         var existing = citizenRepository.findByKeycloakId(req.keycloakId());
         if (citizenRepository.existsByCinAndKeycloakIdNot(req.cin(), req.keycloakId()))
         {
-            throw new IllegalStateException("CIN already used by another account");
+            throw new BusinessConflictException("CIN already used by another account");
         }
 
         if (existing.isPresent())
@@ -116,7 +118,7 @@ public class CitizenService
         String normalized = normalizeNullable(value);
         if (normalized == null)
         {
-            throw new IllegalArgumentException(fieldName + " must not be blank");
+            throw new RequestValidationException(fieldName + " must not be blank");
         }
         return normalized;
     }
