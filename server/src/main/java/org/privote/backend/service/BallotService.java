@@ -6,6 +6,8 @@ import org.privote.backend.dto.ballot.BallotCreateDto;
 import org.privote.backend.entity.Ballot;
 import org.privote.backend.entity.Candidate;
 import org.privote.backend.entity.Election;
+import org.privote.backend.exception.BusinessConflictException;
+import org.privote.backend.exception.RequestValidationException;
 import org.privote.backend.exception.ResourceNotFoundException;
 import org.privote.backend.mapper.BallotMapper;
 import org.privote.backend.repository.BallotRepository;
@@ -79,27 +81,27 @@ public class BallotService
     {
         if (ballotDto == null)
         {
-            throw new IllegalArgumentException("Ballot payload is required");
+            throw new RequestValidationException("Ballot payload is required");
         }
         if (ballotDto.getElectionPublicId() == null)
         {
-            throw new IllegalArgumentException("electionPublicId is required");
+            throw new RequestValidationException("electionPublicId is required");
         }
         if (ballotDto.getCiphertext() == null || ballotDto.getCiphertext().length == 0)
         {
-            throw new IllegalArgumentException("ciphertext is required");
+            throw new RequestValidationException("ciphertext is required");
         }
         if (ballotDto.getCiphertextHash() == null || ballotDto.getCiphertextHash().isBlank())
         {
-            throw new IllegalArgumentException("ciphertextHash is required");
+            throw new RequestValidationException("ciphertextHash is required");
         }
         if (ballotDto.getNullifier() == null || ballotDto.getNullifier().isBlank())
         {
-            throw new IllegalArgumentException("nullifier is required");
+            throw new RequestValidationException("nullifier is required");
         }
         if (ballotDto.getTransactionHash() == null || ballotDto.getTransactionHash().isBlank())
         {
-            throw new IllegalArgumentException("transactionHash is required");
+            throw new RequestValidationException("transactionHash is required");
         }
     }
 
@@ -109,7 +111,7 @@ public class BallotService
         {
             if (currentBallotId == null || !existing.getId().equals(currentBallotId))
             {
-                throw new IllegalStateException("transactionHash already used by another ballot");
+                throw new BusinessConflictException("transactionHash already used by another ballot");
             }
         });
 
@@ -118,7 +120,7 @@ public class BallotService
                 {
                     if (currentBallotId == null || !existing.getId().equals(currentBallotId))
                     {
-                        throw new IllegalStateException("nullifier already used in this election");
+                        throw new BusinessConflictException("nullifier already used in this election");
                     }
                 });
     }
